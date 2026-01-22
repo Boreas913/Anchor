@@ -1,0 +1,687 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+:root {
+    /* Warm Pastel Colors */
+    --color-primary: #ff9a9e;
+    --color-secondary: #ffb3ba;
+    --color-accent: #ffdfba;
+    --color-accent-light: #baffc9;
+    --color-background: #fff5f5;
+    --color-surface: #ffffff;
+    --color-text: #4a4a4a;
+    --color-text-light: #8a8a8a;
+    --color-border: #f0e0e0;
+    
+    /* Typography */
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-size-base: 16px;
+    --font-size-small: 14px;
+    --font-size-large: 20px;
+    --font-size-h1: 28px;
+    --font-size-h2: 24px;
+    --font-size-h3: 20px;
+    
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px rgba(255, 154, 158, 0.1);
+    --shadow-md: 0 4px 8px rgba(255, 154, 158, 0.15);
+    --shadow-lg: 0 8px 16px rgba(255, 154, 158, 0.2);
+}
+
+body {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    background-color: var(--color-background);
+    line-height: 1.6;
+}
+
+/* Navigation */
+.main-nav {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    padding: var(--spacing-md) 0;
+    box-shadow: var(--shadow-md);
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: white;
+    font-size: var(--font-size-large);
+    font-weight: 600;
+}
+
+.logo-icon {
+    width: 32px;
+    height: 32px;
+}
+
+.nav-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.nav-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+    font-weight: 600;
+}
+
+.nav-btn img {
+    width: 20px;
+    height: 20px;
+}
+@media (max-width: 550px) {
+    .nav-btn span{
+        display: none;
+    }
+}
+/* Main Content */
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-xl) var(--spacing-lg);
+}
+/* Section Headers */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-header h1 {
+    font-size: var(--font-size-h1);
+    color: var(--color-text);
+    font-weight: 600;
+}
+/* Buttons */
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary img {
+    width: 18px;
+    height: 18px;
+}
+
+.btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-surface);
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-secondary img {
+    width: 18px;
+    height: 18px;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.tab-btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--color-text-light);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: var(--color-primary);
+}
+
+.tab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+/* Grocery Checklist */
+.grocery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.grocery-header h2 {
+    font-size: var(--font-size-h2);
+    color: var(--color-text);
+}
+
+.budget-info {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.budget-amount {
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.budget-limit {
+    font-size: var(--font-size-base);
+    color: var(--color-text-light);
+}
+
+.grocery-categories {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.category-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.category-section:last-child {
+    margin-bottom: 0;
+}
+
+.category-title {
+    font-size: var(--font-size-h3);
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-md);
+    font-weight: 600;
+}
+
+.grocery-list {
+    list-style: none;
+}
+
+.grocery-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.grocery-item:last-child {
+    border-bottom: none;
+}
+
+.grocery-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+.grocery-item label {
+    flex: 1;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+}
+
+.item-price {
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+/* Meal Calendar */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.calendar-header h2 {
+    font-size: var(--font-size-h2);
+    color: var(--color-text);
+}
+
+.meal-calendar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.day-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.day-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.day-header h3 {
+    font-size: var(--font-size-h3);
+    color: var(--color-text);
+}
+
+.day-date {
+    font-size: var(--font-size-small);
+    color: var(--color-text-light);
+}
+
+.meal-slots {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.meal-slot {
+    padding: var(--spacing-sm);
+    background: var(--color-background);
+    border-radius: var(--radius-sm);
+    min-height: 80px;
+}
+
+.meal-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-light);
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    display: block;
+}
+
+.recipe-card-mini {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs);
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+}
+
+.recipe-card-mini img {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+}
+
+.recipe-info-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.recipe-name {
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.recipe-time {
+    font-size: 12px;
+    color: var(--color-text-light);
+}
+
+.add-meal-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 50px;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-light);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.add-meal-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(255, 154, 158, 0.05);
+}
+/* Available Recipes */
+.available-recipes {
+    margin-top: var(--spacing-xl);
+}
+
+.available-recipes h3 {
+    font-size: var(--font-size-h3);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-md);
+}
+
+.recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.recipe-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.recipe-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+}
+
+.recipe-card.draggable {
+    cursor: grab;
+}
+
+.recipe-card.draggable:active {
+    cursor: grabbing;
+}
+
+.recipe-card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+
+.recipe-card-content {
+    padding: var(--spacing-md);
+}
+
+.recipe-card-content h4 {
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+}
+
+.recipe-tags {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.tag {
+    padding: 4px var(--spacing-xs);
+    background: var(--color-accent);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.recipe-meta {
+    display: flex;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-small);
+    color: var(--color-text-light);
+}
+/* Secondary Section */
+.secondary-section {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-xl);
+    border-top: 2px solid var(--color-border);
+}
+
+/* Inventory */
+.inventory-header,
+.recipe-collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.inventory-header h2,
+.recipe-collection-header h2 {
+    font-size: var(--font-size-h2);
+    color: var(--color-text);
+}
+
+.inventory-actions,
+.recipe-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.inventory-list {
+    list-style: none;
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.inventory-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.inventory-item:last-child {
+    border-bottom: none;
+}
+
+.item-name {
+    flex: 1;
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.item-quantity {
+    font-size: var(--font-size-base);
+    color: var(--color-text-light);
+}
+
+.item-action {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--color-accent);
+    color: var(--color-text);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.item-action:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+/* Budget Alert */
+.budget-alert-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.budget-alert-panel {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    max-width: 500px;
+    width: 90%;
+    box-shadow: var(--shadow-lg);
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.alert-header h3 {
+    font-size: var(--font-size-h2);
+    color: var(--color-text);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 32px;
+    color: var(--color-text-light);
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: var(--color-primary);
+}
+
+.alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.alert-message {
+    font-size: var(--font-size-base);
+    color: var(--color-text);
+}
+
+.alert-details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--color-background);
+    border-radius: var(--radius-sm);
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-item span:first-child {
+    color: var(--color-text-light);
+}
+
+.amount {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.amount.over {
+    color: #e74c3c;
+}
+
+.alert-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+}
