@@ -41,10 +41,6 @@
         <section class="meal-planning-section">
             <div class="section-header">
                 <h1>Weekly Meal Planning</h1>
-                <button class="btn-primary">
-                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" alt="Add">
-                    Add Recipe
-                </button>
             </div>
 
             <!-- Tabs -->
@@ -59,7 +55,8 @@
                     <h2>Weekly Grocery List</h2>
                     <div class="budget-info">
                         <span class="budget-amount">Estimated: $45.20</span>
-                        <span class="budget-limit">Budget: $50.00</span>
+                        <span class="budget-amount">Budget: $</span>
+                        <input type="text" class="item-action input-primary" id="budget-limit">
                     </div>
                 </div>
                 
@@ -129,7 +126,14 @@
                     </div>
                 </div>
 
-                <button class="btn-secondary">Add Custom Item</button>
+                <button class="btn-secondary" id="add-custom-item">Add Custom Item</button>
+                <div class="modal" id="add-custom-item-modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <input class="input-primary" id="custom-item-modal-input" type="text" placeholder="Name">
+                        <input class="input-primary" id="custom-item-modal-input" type="text" placeholder="Price">
+                    </div>
+                </div>
             </div>
 
             <!-- Weekly Recipes Tab -->

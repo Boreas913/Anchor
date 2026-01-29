@@ -1,5 +1,5 @@
 // Tab Switching Functionality
-//document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
     // Tab buttons
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -27,3 +27,27 @@
             }
         });
     });
+    //modal for add custom item to grocery list
+    const modal = document.getElementById("add-custom-item-modal");
+    const btn = document.getElementById("add-custom-item");
+    const span = document.getElementsByClassName("close")[0];
+    const myInput = document.getElementById("custom-item-modal-input");
+    btn.onclick = function(){
+        modal.style.display = "block";
+    }
+    span.onclick = function(){
+        modal.style.display = "none";
+    }
+    window.onclick = function(event){
+        if(event.target == modal){
+            modal.style.display = "none";
+        }
+    }
+    inputField.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      modal.style.display = "none";
+      alert("You typed: " + inputField.value); 
+    }
+    });//saving custom item modal and input
+});
