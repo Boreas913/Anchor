@@ -335,13 +335,40 @@ body {
 .modal-content{
     margin: 15% auto;
     padding: 20px;
-    width: 50%;
-    background-color: #ffdfba;
+    width: 30%;
+    background-color: var(--color-accent);
     border-radius: var(--radius-lg);
     color: var(--color-text-light);
     display: flex;
     justify-content: center;
     align-items: center;
+}
+.custom-item-input{
+    margin-right: 1rem;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    color: var(--color-primary);
+}
+.custom-item-input::placeholder{
+    color: var(--color-secondary);
+    font-style: italic;
+}
+.custom-item-price{
+    color: var(--color-primary);
+}
+.add-to-list-grocery{
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: .2rem;
+    background: var(--color-primary);
+    color: var(--color-accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 .close{
     position: absolute;
