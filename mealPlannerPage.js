@@ -32,45 +32,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const btn = document.getElementById("add-custom-item");
     const span = document.getElementsByClassName("close")[0];
 
-    // //const myInput = document.getElementById("custom-item-modal-input");
-    // btn.onclick = function(){
-    //     modal.style.display = "block";
-    // }
-    // span.onclick = function(){
-    //     modal.style.display = "none";
-    // }
-    // window.onclick = function(event){
-    //     if(event.target == modal){
-    //         modal.style.display = "none";
-    //     }
-    // }
-    // inputField.addEventListener("keydown", (event) => {
-    // if (event.key === "Enter") {
-    //   event.preventDefault();
-    //   modal.style.display = "none";
-    //   alert("You typed: " + inputField.value); 
-    // }
-    // });
-
-    // --- PART A: MODAL OPEN/CLOSE LOGIC ---
-    // When the user clicks the button, open the modal 
+    // --- MODAL OPEN/CLOSE LOGIC --- 
     btn.onclick = function() {
       modal.style.display = "block";
     }
 
-    // When the user clicks on <span> (x), close the modal
     span.onclick = function() {
       modal.style.display = "none";
     }
 
-    // When the user clicks anywhere outside of the modal, close it
     window.onclick = function(event) {
       if (event.target == modal) {
         modal.style.display = "none";
       }
     }
 
-    // --- PART B: SAVING THE ITEM TO THE LIST ---
+    // --- SAVING THE ITEM TO THE LIST ---
 
     window.saveCustomItem = function() {
       // 1. Get values from the modal inputs

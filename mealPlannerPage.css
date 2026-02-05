@@ -229,6 +229,13 @@ body {
 .tab-content.active {
     display: block;
 }
+select{
+    margin-right: 1rem;
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    color: var(--color-primary);
+    height: 20px;
+}
 /* Grocery Checklist */
 .grocery-header {
     display: flex;
