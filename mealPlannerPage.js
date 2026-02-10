@@ -50,39 +50,89 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- SAVING THE ITEM TO THE LIST ---
 
     window.saveCustomItem = function() {
-      // 1. Get values from the modal inputs
-      const nameVal = document.getElementById("custom-item-modal-name").value;
-      const priceVal = document.getElementById("custom-item-modal-price").value;
+  // 1. Get values from the modal inputs
+  const nameVal = document.getElementById("custom-item-modal-name").value;
+  const priceVal = document.getElementById("custom-item-modal-price").value;
+  let categoryVal = document.getElementById("custom-item-modal-category").value;
 
-      // 2. Validation
-      if (nameVal === "" || priceVal === "") {
-        alert("Please fill in both name and price");
-        return;
+  // 2. Validation
+  if (nameVal === "" || priceVal === "") {
+    alert("Please fill in both name and price");
+    return;
+  }
+
+  // 3. Find category
+  const list = document.getElementById(`list-${categoryVal}`);
+
+  // 4. Create and Append
+  if (list) {
+    const newItem = document.createElement("li");
+    newItem.className = "grocery-item";
+    const uniqueId = "custom-" + Date.now();
+
+    newItem.innerHTML = `
+        <input type="checkbox" id="${uniqueId}">
+        <label for="${uniqueId}">${nameVal}</label>
+        <span class="item-price">$${parseFloat(priceVal).toFixed(2)}</span>
+    `;
+    list.appendChild(newItem);
+
+    // 5. SAVE TO COMPUTER (LocalStorage)
+    saveToStorage({
+        id: uniqueId,
+        name: nameVal,
+        price: priceVal,
+        category: categoryVal
+    });
+  } else {
+    console.error("Could not find list with ID:", listId);
+  }
+
+  // 6. Cleanup
+  document.getElementById("custom-item-modal-name").value = "";
+  document.getElementById("custom-item-modal-price").value = "";
+  modal.style.display = "none"; 
+
+  // Helper Function: Saving the data so it doesn't disappear
+  function saveToStorage(item) {
+      // Get existing items or start a new array
+      let savedItems = JSON.parse(localStorage.getItem("groceryList") || "[]");
+      savedItems.push(item);
+      // Save it back to the "filing cabinet"
+      localStorage.setItem("groceryList", JSON.stringify(savedItems));
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+      // 1. Check the filing cabinet for saved items
+      const savedData = localStorage.getItem("groceryList");
+
+      // 2. If there's something there, turn it back into a list (array)
+      if (savedData) {
+          const items = JSON.parse(savedData);
+          // 3. Loop through each item and put it back on the screen
+          items.forEach(item => {
+              renderSavedItem(item);
+          });
       }
+  });
+ // The Renderer: The "Blueprint" for creating the HTML
+  function renderSavedItem(item) {
+    const listId = `list-${item.category}`;
+    const list = document.getElementById(listId);
 
-      // 3. Find the grocery list (from your previous code)
-      // Assuming the list has class "grocery-list" or specific ID
-      const list = document.querySelector(".grocery-list"); 
+    if (list) {
+        const newItem = document.createElement("li");
+        newItem.className = "grocery-item";
 
-      // 4. Create the new list item
-      const newItem = document.createElement("li");
-      newItem.className = "grocery-item";
-      const uniqueId = "custom-" + Date.now();
+        newItem.innerHTML = `
+            <input type="checkbox" id="${item.id}">
+            <label for="${item.id}">${item.name}</label>
+            <span class="item-price">$${parseFloat(item.price).toFixed(2)}</span>
+        `;
 
-      newItem.innerHTML = `
-          <input type="checkbox" id="${uniqueId}">
-          <label for="${uniqueId}">${nameVal}</label>
-          <span class="item-price">$${priceVal}</span>
-      `;
-
-      // 5. Add to list
-      list.appendChild(newItem);
-
-      // 6. Cleanup: Clear inputs and close modal
-      document.getElementById("custom-item-modal-name").value = "";
-      document.getElementById("custom-item-modal-price").value = "";
-      modal.style.display = "none"; // Close the modal automatically
+        list.appendChild(newItem);
     }
-});
+}
 
-//To do: getting it in the right section and getting it to save
+}});
+//modal mobile friendly, and saves when reloaded

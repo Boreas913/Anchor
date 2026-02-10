@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anchor - Meal Planning</title>
     <link rel="stylesheet" href="mealPlannerPage.css">
+    <script src="mealPlannerPage.js" defer></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -63,65 +64,25 @@
                 <div class="grocery-categories">
                     <div class="category-section">
                         <h3 class="category-title">Produce</h3>
-                        <ul class="grocery-list">
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item1">
-                                <label for="item1">Spinach - 1 bag</label>
-                                <span class="item-price">$3.99</span>
-                            </li>
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item2">
-                                <label for="item2">Tomatoes - 2 lbs</label>
-                                <span class="item-price">$4.50</span>
-                            </li>
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item3">
-                                <label for="item3">Bell Peppers - 3</label>
-                                <span class="item-price">$2.99</span>
-                            </li>
+                        <ul class="grocery-list" id="list-produce">
                         </ul>
                     </div>
 
                     <div class="category-section">
                         <h3 class="category-title">Proteins</h3>
-                        <ul class="grocery-list">
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item4">
-                                <label for="item4">Chicken Breast - 1 lb</label>
-                                <span class="item-price">$8.99</span>
-                            </li>
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item5">
-                                <label for="item5">Salmon - 0.5 lb</label>
-                                <span class="item-price">$7.50</span>
-                            </li>
+                        <ul class="grocery-list" id="list-proteins">
                         </ul>
                     </div>
 
                     <div class="category-section">
                         <h3 class="category-title">Pantry</h3>
-                        <ul class="grocery-list">
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item6">
-                                <label for="item6">Quinoa - 1 bag</label>
-                                <span class="item-price">$5.99</span>
-                            </li>
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item7">
-                                <label for="item7">Olive Oil</label>
-                                <span class="item-price">$6.99</span>
-                            </li>
+                        <ul class="grocery-list" id="list-pantry">
                         </ul>
                     </div>
 
                     <div class="category-section">
                         <h3 class="category-title">Dairy</h3>
-                        <ul class="grocery-list">
-                            <li class="grocery-item">
-                                <input type="checkbox" id="item8">
-                                <label for="item8">Almond Milk - 1 carton</label>
-                                <span class="item-price">$4.25</span>
-                            </li>
+                        <ul class="grocery-list" id="list-dairy">
                         </ul>
                     </div>
                 </div>
@@ -569,5 +530,5 @@
         </section>
     </main>
 </body>
-    <script src="mealPlannerPage.js"></script>
+
 </html>
