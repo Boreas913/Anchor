@@ -78,61 +78,68 @@ document.addEventListener('DOMContentLoaded', function() {
     list.appendChild(newItem);
 
     // 5. SAVE TO COMPUTER (LocalStorage)
-    saveToStorage({
-        id: uniqueId,
-        name: nameVal,
-        price: priceVal,
-        category: categoryVal
-    });
-  } else {
-    console.error("Could not find list with ID:", listId);
-  }
+//     saveToStorage({
+//         id: uniqueId,
+//         name: nameVal,
+//         price: priceVal,
+//         category: categoryVal
+//     });
+//   } else {
+//     console.error("Could not find list with ID:", listId);
+//   }
 
   // 6. Cleanup
   document.getElementById("custom-item-modal-name").value = "";
   document.getElementById("custom-item-modal-price").value = "";
   modal.style.display = "none"; 
 
-  // Helper Function: Saving the data so it doesn't disappear
-  function saveToStorage(item) {
-      // Get existing items or start a new array
-      let savedItems = JSON.parse(localStorage.getItem("groceryList") || "[]");
-      savedItems.push(item);
-      // Save it back to the "filing cabinet"
-      localStorage.setItem("groceryList", JSON.stringify(savedItems));
-  };
+//   // Helper Function: Saving the data so it doesn't disappear
+//   function saveToStorage(item) {
+//       // Get existing items or start a new array
+//       let savedItems = JSON.parse(localStorage.getItem("groceryList") || "[]");
+//       savedItems.push(item);
+//       // Save it back to the "filing cabinet"
+//       localStorage.setItem("groceryList", JSON.stringify(savedItems));
+//   };
 
-  document.addEventListener("DOMContentLoaded", () => {
-      // 1. Check the filing cabinet for saved items
-      const savedData = localStorage.getItem("groceryList");
+//   document.addEventListener("DOMContentLoaded", () => {
+//       // 1. Check the filing cabinet for saved items
+//       const savedData = localStorage.getItem("groceryList");
 
-      // 2. If there's something there, turn it back into a list (array)
-      if (savedData) {
-          const items = JSON.parse(savedData);
-          // 3. Loop through each item and put it back on the screen
-          items.forEach(item => {
-              renderSavedItem(item);
-          });
-      }
-  });
- // The Renderer: The "Blueprint" for creating the HTML
-  function renderSavedItem(item) {
-    const listId = `list-${item.category}`;
-    const list = document.getElementById(listId);
+//       // 2. If there's something there, turn it back into a list (array)
+//       if (savedData) {
+//           const items = JSON.parse(savedData);
+//           // 3. Loop through each item and put it back on the screen
+//           items.forEach(item => {
+//               renderSavedItem(item);
+//           });
+//       }
+//   });
+//  // The Renderer: The "Blueprint" for creating the HTML
+//   function renderSavedItem(item) {
+//     const listId = `list-${item.category}`;
+//     const list = document.getElementById(listId);
 
-    if (list) {
-        const newItem = document.createElement("li");
-        newItem.className = "grocery-item";
+//     if (list) {
+//         const newItem = document.createElement("li");
+//         newItem.className = "grocery-item";
 
-        newItem.innerHTML = `
-            <input type="checkbox" id="${item.id}">
-            <label for="${item.id}">${item.name}</label>
-            <span class="item-price">$${parseFloat(item.price).toFixed(2)}</span>
-        `;
+//         newItem.innerHTML = `
+//             <input type="checkbox" id="${item.id}">
+//             <label for="${item.id}">${item.name}</label>
+//             <span class="item-price">$${parseFloat(item.price).toFixed(2)}</span>
+//         `;
 
-        list.appendChild(newItem);
+//         list.appendChild(newItem);
+//     }
     }
-}
+    const listItems = document.querySelectorAll('.grocery-list li')
+    let estimated = 0
+    listItems.forEach(item => {
+        const price = item.priceVal;
+        estimated += price;
+    })
+    Element.textContent.replace(`Estimated: $`, `Estimated: $${estimated}`)
 
 }});
-//modal mobile friendly, and saves when reloaded
+//add the prices of item in list and then show it in the estimated on top
