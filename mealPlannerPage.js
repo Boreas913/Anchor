@@ -132,14 +132,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
 //         list.appendChild(newItem);
 //     }
-    }
-    const listItems = document.querySelectorAll('.grocery-list li')
-    let estimated = 0
-    listItems.forEach(item => {
-        const price = item.priceVal;
-        estimated += price;
-    })
-    Element.textContent.replace(`Estimated: $`, `Estimated: $${estimated}`)
+  }
 
+    // 1. Keep the total outside so it persists
+    let runningTotal = 0;
+
+    window.saveCustomItem = function() {
+        // 2. Grab your modal input
+        const priceInput = document.getElementById('custom-item-modal-price');
+        const display = document.getElementById('estimated-cost-display'); // Make sure this ID matches your HTML!
+    
+        // 3. Convert to a number
+        const price = parseFloat(priceInput.value);
+    
+        // 4. Update if valid
+        if (!isNaN(price)) {
+            runningTotal += price;
+
+            // 5. Update the UI
+            display.textContent = `Estimated: $${runningTotal.toFixed(2)}`;
+
+            // Clear input for next time
+            priceInput.value = '';
+        } else {
+            console.error("Invalid price entered in modal");
+        }
+    };
 }});
 //add the prices of item in list and then show it in the estimated on top
+//debug why you can't add two items to the list
