@@ -49,115 +49,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- SAVING THE ITEM TO THE LIST ---
 
-    window.saveCustomItem = function() {
-  // 1. Get values from the modal inputs
-  const nameVal = document.getElementById("custom-item-modal-name").value;
-  const priceVal = document.getElementById("custom-item-modal-price").value;
-  let categoryVal = document.getElementById("custom-item-modal-category").value;
+  let runningTotal = 0;
 
-  // 2. Validation
-  if (nameVal === "" || priceVal === "") {
-    alert("Please fill in both name and price");
-    return;
-  }
+  window.saveCustomItem = function() {
+    const nameVal = document.getElementById("custom-item-modal-name").value;
+    const priceVal = document.getElementById("custom-item-modal-price").value;
+    let categoryVal = document.getElementById("custom-item-modal-category").value;
 
-  // 3. Find category
-  const list = document.getElementById(`list-${categoryVal}`);
+    if (nameVal === "" || priceVal === "") {
+      alert("Please fill in both name and price");
+      return;
+    }
 
-  // 4. Create and Append
-  if (list) {
-    const newItem = document.createElement("li");
-    newItem.className = "grocery-item";
-    const uniqueId = "custom-" + Date.now();
+    const list = document.getElementById(`list-${categoryVal}`);
 
-    newItem.innerHTML = `
-        <input type="checkbox" id="${uniqueId}">
-        <label for="${uniqueId}">${nameVal}</label>
-        <span class="item-price">$${parseFloat(priceVal).toFixed(2)}</span>
-    `;
-    list.appendChild(newItem);
+    if (list) {
+      const newItem = document.createElement("li");
+      newItem.className = "grocery-item";
+      const uniqueId = "custom-" + Date.now();
 
-    // 5. SAVE TO COMPUTER (LocalStorage)
-//     saveToStorage({
-//         id: uniqueId,
-//         name: nameVal,
-//         price: priceVal,
-//         category: categoryVal
-//     });
-//   } else {
-//     console.error("Could not find list with ID:", listId);
-//   }
+      newItem.innerHTML = `
+          <input type="checkbox" id="${uniqueId}">
+          <label for="${uniqueId}">${nameVal}</label>
+          <span class="item-price">$${parseFloat(priceVal).toFixed(2)}</span>
+      `;
+      list.appendChild(newItem);
+    }
 
-  // 6. Cleanup
-  document.getElementById("custom-item-modal-name").value = "";
-  document.getElementById("custom-item-modal-price").value = "";
-  modal.style.display = "none"; 
+    // Update estimated cost
+    const price = parseFloat(priceVal);
+    if (!isNaN(price)) {
+      runningTotal += price;
+      document.getElementById('estimated').textContent =
+        `Estimated: $${runningTotal.toFixed(2)}`;
+    }
 
-//   // Helper Function: Saving the data so it doesn't disappear
-//   function saveToStorage(item) {
-//       // Get existing items or start a new array
-//       let savedItems = JSON.parse(localStorage.getItem("groceryList") || "[]");
-//       savedItems.push(item);
-//       // Save it back to the "filing cabinet"
-//       localStorage.setItem("groceryList", JSON.stringify(savedItems));
-//   };
-
-//   document.addEventListener("DOMContentLoaded", () => {
-//       // 1. Check the filing cabinet for saved items
-//       const savedData = localStorage.getItem("groceryList");
-
-//       // 2. If there's something there, turn it back into a list (array)
-//       if (savedData) {
-//           const items = JSON.parse(savedData);
-//           // 3. Loop through each item and put it back on the screen
-//           items.forEach(item => {
-//               renderSavedItem(item);
-//           });
-//       }
-//   });
-//  // The Renderer: The "Blueprint" for creating the HTML
-//   function renderSavedItem(item) {
-//     const listId = `list-${item.category}`;
-//     const list = document.getElementById(listId);
-
-//     if (list) {
-//         const newItem = document.createElement("li");
-//         newItem.className = "grocery-item";
-
-//         newItem.innerHTML = `
-//             <input type="checkbox" id="${item.id}">
-//             <label for="${item.id}">${item.name}</label>
-//             <span class="item-price">$${parseFloat(item.price).toFixed(2)}</span>
-//         `;
-
-//         list.appendChild(newItem);
-//     }
-  }
-
-    // 1. Keep the total outside so it persists
-    let runningTotal = 0;
-
-    window.saveCustomItem = function() {
-        // 2. Grab your modal input
-        const priceInput = document.getElementById('custom-item-modal-price');
-        const display = document.getElementById('estimated-cost-display'); // Make sure this ID matches your HTML!
-    
-        // 3. Convert to a number
-        const price = parseFloat(priceInput.value);
-    
-        // 4. Update if valid
-        if (!isNaN(price)) {
-            runningTotal += price;
-
-            // 5. Update the UI
-            display.textContent = `Estimated: $${runningTotal.toFixed(2)}`;
-
-            // Clear input for next time
-            priceInput.value = '';
-        } else {
-            console.error("Invalid price entered in modal");
-        }
-    };
-}});
-//add the prices of item in list and then show it in the estimated on top
-//debug why you can't add two items to the list
+    // Reset modal inputs
+    document.getElementById("custom-item-modal-name").value = "";
+    document.getElementById("custom-item-modal-price").value = "";
+    modal.style.display = "none";
+  };
+});
+//!!!!!!!Add DATA PERSISTANCE!!!!!!!!!!!!!!
