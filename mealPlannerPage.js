@@ -256,6 +256,181 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // --- AUTO-SUGGEST MEALS ---
+
+  // Basic recipe data used for scoring suggestions
+  const RECIPE_DATA = {
+    'Overnight Oats': {
+      id: 'overnight-oats',
+      ingredients: ['oats', 'almond milk', 'chia seeds', 'banana'],
+      time: '5 min',
+      color: 'ffb3ba'
+    },
+    'Quinoa Salad': {
+      id: 'quinoa-salad',
+      ingredients: ['quinoa', 'tomatoes', 'spinach', 'olive oil'],
+      time: '20 min',
+      color: 'ffdfba'
+    },
+    'Grilled Chicken': {
+      id: 'grilled-chicken',
+      ingredients: ['chicken breast', 'olive oil', 'garlic', 'spinach'],
+      time: '30 min',
+      color: 'baffc9'
+    },
+    'Mediterranean Bowl': {
+      id: 'mediterranean-bowl',
+      ingredients: ['quinoa', 'tomatoes', 'spinach', 'olive oil', 'chickpeas'],
+      time: '25 min',
+      color: 'ffb3ba'
+    },
+    'Stir Fry': {
+      id: 'stir-fry',
+      ingredients: ['chicken breast', 'broccoli', 'bell peppers', 'soy sauce'],
+      time: '20 min',
+      color: 'ffdfba'
+    },
+    'Salmon & Veggies': {
+      id: 'salmon-veggies',
+      ingredients: ['salmon', 'broccoli', 'tomatoes', 'olive oil'],
+      time: '30 min',
+      color: 'baffc9'
+    }
+  };
+
+  function getInventoryIngredients() {
+    const set = new Set();
+    document.querySelectorAll('.inventory-item .item-name').forEach(span => {
+      const name = span.textContent.trim().toLowerCase();
+      if (name) {
+        set.add(name);
+      }
+    });
+    return set;
+  }
+
+  function getCurrentPlanRecipeNames() {
+    const names = [];
+    document.querySelectorAll('.meal-calendar .recipe-name').forEach(span => {
+      const name = span.textContent.trim();
+      if (name) {
+        names.push(name);
+      }
+    });
+    return names;
+  }
+
+  function buildUsageCounts(recipeNames) {
+    const counts = {};
+    recipeNames.forEach(name => {
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function getUsedIngredientsFromPlan(recipeNames) {
+    const used = new Set();
+    recipeNames.forEach(name => {
+      const recipe = RECIPE_DATA[name];
+      if (recipe && Array.isArray(recipe.ingredients)) {
+        recipe.ingredients.forEach(ing => used.add(ing.toLowerCase()));
+      }
+    });
+    return used;
+  }
+
+  function scoreRecipeCandidate(name, usageCounts, usedIngredients, inventoryIngredients) {
+    const recipe = RECIPE_DATA[name];
+    if (!recipe || !Array.isArray(recipe.ingredients)) return -Infinity;
+
+    let overlapInventory = 0;
+    let overlapUsed = 0;
+    let newIngredients = 0;
+
+    recipe.ingredients.forEach(rawIng => {
+      const ing = rawIng.toLowerCase();
+      const inInventory = inventoryIngredients.has(ing);
+      const inUsed = usedIngredients.has(ing);
+
+      if (inInventory) overlapInventory++;
+      if (inUsed) overlapUsed++;
+      if (!inInventory && !inUsed) newIngredients++;
+    });
+
+    const baseScore = overlapInventory * 3 + overlapUsed * 2 - newIngredients;
+    const usagePenalty = (usageCounts[name] || 0) * 2; // discourage overuse
+
+    return baseScore - usagePenalty;
+  }
+
+  function fillMealSlotWithRecipe(slot, recipeName) {
+    const addBtn = slot.querySelector('.add-meal-btn');
+    if (!addBtn) return;
+
+    const recipe = RECIPE_DATA[recipeName] || {};
+    const firstLetter = recipeName.charAt(0).toUpperCase() || 'R';
+    const color = recipe.color || 'ffb3ba';
+    const timeText = recipe.time || '';
+
+    addBtn.remove();
+
+    slot.insertAdjacentHTML('beforeend', `
+      <div class="recipe-card-mini">
+        <img src="https://via.placeholder.com/60x60/${color}/ffffff?text=${encodeURIComponent(firstLetter)}" alt="Recipe">
+        <div class="recipe-info-mini">
+          <span class="recipe-name">${recipeName}</span>
+          <span class="recipe-time">${timeText}</span>
+        </div>
+      </div>
+    `);
+  }
+
+  function autoSuggestMeals() {
+    const maxPerWeek = 3;
+    const inventoryIngredients = getInventoryIngredients();
+    const currentNames = getCurrentPlanRecipeNames();
+    const usageCounts = buildUsageCounts(currentNames);
+    const usedIngredients = getUsedIngredientsFromPlan(currentNames);
+
+    const emptySlots = Array.from(document.querySelectorAll('.meal-slot')).filter(slot =>
+      slot.querySelector('.add-meal-btn')
+    );
+
+    emptySlots.forEach(slot => {
+      const candidates = Object.keys(RECIPE_DATA).filter(name => {
+        const count = usageCounts[name] || 0;
+        return count < maxPerWeek;
+      });
+
+      if (!candidates.length) {
+        return;
+      }
+
+      let bestName = null;
+      let bestScore = -Infinity;
+
+      candidates.forEach(name => {
+        const score = scoreRecipeCandidate(name, usageCounts, usedIngredients, inventoryIngredients);
+        if (score > bestScore) {
+          bestScore = score;
+          bestName = name;
+        }
+      });
+
+      if (!bestName || bestScore === -Infinity) {
+        return;
+      }
+
+      fillMealSlotWithRecipe(slot, bestName);
+      usageCounts[bestName] = (usageCounts[bestName] || 0) + 1;
+
+      const recipe = RECIPE_DATA[bestName];
+      if (recipe && Array.isArray(recipe.ingredients)) {
+        recipe.ingredients.forEach(ing => usedIngredients.add(ing.toLowerCase()));
+      }
+    });
+  }
+
   // Attach listeners to any existing checkboxes / remove buttons (if present from HTML)
   document.querySelectorAll('.grocery-item input[type="checkbox"]').forEach(cb => {
     attachCheckboxListener(cb);
@@ -264,10 +439,13 @@ document.addEventListener('DOMContentLoaded', function() {
     attachRemoveListener(btn);
   });
 
+  // Expose auto-suggest globally for button onclick
+  window.autoSuggestMeals = autoSuggestMeals;
+
   // Load any previously saved grocery checklist on page load
   loadGroceryChecklist();
 
   // Update the dates shown in the \"This Week's Meals\" section
   updateWeekDates();
 });
-//!!!!!!!Add DATA PERSISTANCE!!!!!!!!!!!!!!
+
