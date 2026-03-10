@@ -364,25 +364,57 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function fillMealSlotWithRecipe(slot, recipeName) {
-    const addBtn = slot.querySelector('.add-meal-btn');
-    if (!addBtn) return;
+    const existingAddBtn = slot.querySelector('.add-meal-btn');
+    if (existingAddBtn) {
+      existingAddBtn.remove();
+    }
+
+    const existingCard = slot.querySelector('.recipe-card-mini');
+    if (existingCard) {
+      existingCard.remove();
+    }
 
     const recipe = RECIPE_DATA[recipeName] || {};
     const firstLetter = recipeName.charAt(0).toUpperCase() || 'R';
     const color = recipe.color || 'ffb3ba';
     const timeText = recipe.time || '';
 
-    addBtn.remove();
-
     slot.insertAdjacentHTML('beforeend', `
-      <div class="recipe-card-mini">
+      <div class="recipe-card-mini" draggable="true">
         <img src="https://via.placeholder.com/60x60/${color}/ffffff?text=${encodeURIComponent(firstLetter)}" alt="Recipe">
         <div class="recipe-info-mini">
           <span class="recipe-name">${recipeName}</span>
           <span class="recipe-time">${timeText}</span>
         </div>
+        <button class="remove-meal-btn" aria-label="Remove meal">&times;</button>
       </div>
     `);
+
+    const removeBtn = slot.querySelector('.recipe-card-mini .remove-meal-btn');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        const dayCard = slot.closest('.day-card');
+        if (!dayCard) return;
+        const day = dayCard.getAttribute('data-day');
+        let mealType = 'breakfast';
+        if (slot.classList.contains('lunch')) mealType = 'lunch';
+        if (slot.classList.contains('dinner')) mealType = 'dinner';
+
+        const plan = loadMealPlan() || getEmptyMealPlan();
+        if (plan[day]) {
+          plan[day][mealType] = null;
+        }
+        saveMealPlan(plan);
+
+        const card = slot.querySelector('.recipe-card-mini');
+        if (card) card.remove();
+        const addBtn = document.createElement('div');
+        addBtn.className = 'add-meal-btn';
+        addBtn.textContent = '+ Add Recipe';
+        slot.appendChild(addBtn);
+        setupAddMealButtons();
+      });
+    }
   }
 
   function autoSuggestMeals() {
@@ -431,6 +463,299 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // --- MEAL PLAN PERSISTENCE ---
+  const MEAL_PLAN_KEY = 'anchor_mealPlan_v1';
+
+  function getEmptyMealPlan() {
+    return {
+      monday:   { breakfast: null, lunch: null, dinner: null },
+      tuesday:  { breakfast: null, lunch: null, dinner: null },
+      wednesday:{ breakfast: null, lunch: null, dinner: null },
+      thursday: { breakfast: null, lunch: null, dinner: null },
+      friday:   { breakfast: null, lunch: null, dinner: null },
+      saturday: { breakfast: null, lunch: null, dinner: null },
+      sunday:   { breakfast: null, lunch: null, dinner: null }
+    };
+  }
+
+  function saveMealPlan(plan) {
+    try {
+      localStorage.setItem(MEAL_PLAN_KEY, JSON.stringify(plan));
+    } catch (e) {
+      console.error('Failed to save meal plan', e);
+    }
+    updateGroceryFromPlan(plan);
+  }
+
+  function loadMealPlan() {
+    try {
+      const raw = localStorage.getItem(MEAL_PLAN_KEY);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch (e) {
+      console.error('Failed to load meal plan', e);
+    }
+    return null;
+  }
+
+  function deriveMealPlanFromDOM() {
+    const plan = getEmptyMealPlan();
+    document.querySelectorAll('.meal-calendar .day-card').forEach(card => {
+      const day = card.getAttribute('data-day');
+      if (!day || !plan[day]) return;
+
+      const slots = card.querySelectorAll('.meal-slot');
+      slots.forEach(slot => {
+        let mealType = 'breakfast';
+        if (slot.classList.contains('lunch')) mealType = 'lunch';
+        if (slot.classList.contains('dinner')) mealType = 'dinner';
+
+        const nameEl = slot.querySelector('.recipe-name');
+        if (nameEl) {
+          plan[day][mealType] = nameEl.textContent.trim();
+        }
+      });
+    });
+    return plan;
+  }
+
+  function clearMealSlotsUI() {
+    document.querySelectorAll('.meal-slot').forEach(slot => {
+      const label = slot.querySelector('.meal-label');
+      slot.innerHTML = '';
+      if (label) {
+        slot.appendChild(label);
+      } else {
+        const mealLabel = document.createElement('span');
+        mealLabel.className = 'meal-label';
+        mealLabel.textContent = 'Meal';
+        slot.insertAdjacentElement('afterbegin', mealLabel);
+      }
+      const addBtn = document.createElement('div');
+      addBtn.className = 'add-meal-btn';
+      addBtn.textContent = '+ Add Recipe';
+      slot.appendChild(addBtn);
+    });
+  }
+
+  function renderMealPlan(plan) {
+    clearMealSlotsUI();
+
+    document.querySelectorAll('.meal-calendar .day-card').forEach(card => {
+      const day = card.getAttribute('data-day');
+      if (!day || !plan[day]) return;
+
+      const slots = card.querySelectorAll('.meal-slot');
+      slots.forEach(slot => {
+        let mealType = 'breakfast';
+        if (slot.classList.contains('lunch')) mealType = 'lunch';
+        if (slot.classList.contains('dinner')) mealType = 'dinner';
+
+        const recipeName = plan[day][mealType];
+        if (recipeName) {
+          fillMealSlotWithRecipe(slot, recipeName);
+        }
+      });
+    });
+  }
+
+  // --- GROCERY LIST FROM MEAL PLAN + INVENTORY ---
+  function mapIngredientToCategory(ingredient) {
+    const ing = ingredient.toLowerCase();
+    if (['spinach', 'tomatoes', 'bell peppers', 'broccoli', 'banana'].some(i => ing.includes(i))) {
+      return 'produce';
+    }
+    if (['chicken', 'salmon'].some(i => ing.includes(i))) {
+      return 'proteins';
+    }
+    if (['milk'].some(i => ing.includes(i))) {
+      return 'dairy';
+    }
+    return 'pantry';
+  }
+
+  function updateGroceryFromPlan(plan) {
+    const needed = new Map();
+
+    Object.keys(plan).forEach(day => {
+      const dayPlan = plan[day];
+      ['breakfast', 'lunch', 'dinner'].forEach(meal => {
+        const recipeName = dayPlan[meal];
+        const recipe = RECIPE_DATA[recipeName];
+        if (recipe && Array.isArray(recipe.ingredients)) {
+          recipe.ingredients.forEach(rawIng => {
+            const ing = rawIng.toLowerCase();
+            needed.set(ing, (needed.get(ing) || 0) + 1);
+          });
+        }
+      });
+    });
+
+    const inventorySet = getInventoryIngredients();
+
+    const existingLabels = new Set();
+    document.querySelectorAll('.grocery-item label').forEach(label => {
+      existingLabels.add(label.textContent.trim().toLowerCase());
+    });
+
+    needed.forEach((_, ing) => {
+      if (inventorySet.has(ing)) return;
+      if (existingLabels.has(ing)) return;
+
+      const category = mapIngredientToCategory(ing);
+      const list = document.getElementById(`list-${category}`) || document.getElementById('list-pantry');
+      if (!list) return;
+
+      const li = document.createElement('li');
+      li.className = 'grocery-item';
+      const id = `auto-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      li.innerHTML = `
+          <input type="checkbox" id="${id}">
+          <label for="${id}">${ing}</label>
+          <span class="item-price">$0.00</span>
+          <button class="remove-item-btn" aria-label="Remove item">&times;</button>
+      `;
+
+      const cb = li.querySelector('input[type="checkbox"]');
+      if (cb) attachCheckboxListener(cb);
+      const rm = li.querySelector('.remove-item-btn');
+      if (rm) attachRemoveListener(rm);
+
+      list.appendChild(li);
+    });
+
+    saveGroceryChecklist();
+  }
+
+  // --- MEAL SELECTION / INTERACTIONS ---
+  let activeMealSlot = null;
+
+  function assignRecipeToSlot(slot, recipeName) {
+    const dayCard = slot.closest('.day-card');
+    if (!dayCard) return;
+    const day = dayCard.getAttribute('data-day');
+    let mealType = 'breakfast';
+    if (slot.classList.contains('lunch')) mealType = 'lunch';
+    if (slot.classList.contains('dinner')) mealType = 'dinner';
+
+    const plan = loadMealPlan() || deriveMealPlanFromDOM() || getEmptyMealPlan();
+    if (!plan[day]) plan[day] = { breakfast: null, lunch: null, dinner: null };
+
+    plan[day][mealType] = recipeName;
+
+    fillMealSlotWithRecipe(slot, recipeName);
+
+    saveMealPlan(plan);
+  }
+
+  // Drag-and-drop between meal slots
+  function setupMealDragAndDrop() {
+    let dragSource = null;
+
+    document.querySelectorAll('.meal-slot').forEach(slot => {
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slot.style.backgroundColor = 'rgba(255, 154, 158, 0.1)';
+      });
+      slot.addEventListener('dragleave', () => {
+        slot.style.backgroundColor = '';
+      });
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        slot.style.backgroundColor = '';
+        const recipeName = e.dataTransfer.getData('text/plain');
+        if (!recipeName) return;
+        assignRecipeToSlot(slot, recipeName);
+
+        // If we know the source, clear it so the card is moved, not copied
+        if (dragSource) {
+          const plan = loadMealPlan() || getEmptyMealPlan();
+          if (plan[dragSource.day]) {
+            plan[dragSource.day][dragSource.mealType] = null;
+          }
+          saveMealPlan(plan);
+          renderMealPlan(plan);
+          setupAddMealButtons();
+          setupMealDragAndDrop();
+          dragSource = null;
+        }
+      });
+    });
+
+    document.addEventListener('dragstart', (e) => {
+      const card = e.target.closest('.recipe-card-mini');
+      if (!card) return;
+      const nameEl = card.querySelector('.recipe-name');
+      if (!nameEl) return;
+      const recipeName = nameEl.textContent.trim();
+      e.dataTransfer.setData('text/plain', recipeName);
+      card.style.opacity = '0.6';
+
+      const slot = card.closest('.meal-slot');
+      const dayCard = card.closest('.day-card');
+      if (slot && dayCard) {
+        const day = dayCard.getAttribute('data-day');
+        let mealType = 'breakfast';
+        if (slot.classList.contains('lunch')) mealType = 'lunch';
+        if (slot.classList.contains('dinner')) mealType = 'dinner';
+        dragSource = { day, mealType };
+      }
+    });
+
+    document.addEventListener('dragend', (e) => {
+      const card = e.target.closest('.recipe-card-mini');
+      if (card) {
+        card.style.opacity = '1';
+      }
+    });
+  }
+
+  function setupAddMealButtons() {
+    document.querySelectorAll('.add-meal-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const slot = btn.closest('.meal-slot');
+        if (slot) {
+          // remember which slot user wants to fill
+          activeMealSlot = slot;
+          // switch to Recipe Collection tab and scroll to it
+          const recipeTabBtn = document.querySelector('.tabs .tab-btn[data-tab="recipe-collection"]');
+          if (recipeTabBtn) {
+            recipeTabBtn.click();
+          }
+          const recipeSection = document.getElementById('recipe-collection-tab');
+          if (recipeSection && typeof recipeSection.scrollIntoView === 'function') {
+            recipeSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      });
+    });
+  }
+
+  function setupRecipeCollectionInteractions() {
+    // Clicking a recipe in the collection assigns it either to the active slot
+    // or to the first empty slot if none is active.
+    document.querySelectorAll('#recipe-collection-tab .recipe-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const titleEl = card.querySelector('h4');
+        if (!titleEl) return;
+        const recipeName = titleEl.textContent.trim();
+
+        let targetSlot = activeMealSlot;
+        if (!targetSlot) {
+          const emptyAddBtn = document.querySelector('.meal-slot .add-meal-btn');
+          if (emptyAddBtn) {
+            targetSlot = emptyAddBtn.closest('.meal-slot');
+          }
+        }
+        if (targetSlot) {
+          assignRecipeToSlot(targetSlot, recipeName);
+          activeMealSlot = null;
+        }
+      });
+    });
+  }
+
   // Attach listeners to any existing checkboxes / remove buttons (if present from HTML)
   document.querySelectorAll('.grocery-item input[type="checkbox"]').forEach(cb => {
     attachCheckboxListener(cb);
@@ -445,7 +770,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load any previously saved grocery checklist on page load
   loadGroceryChecklist();
 
-  // Update the dates shown in the \"This Week's Meals\" section
+  // Update the dates shown in the "This Week's Meals" section
   updateWeekDates();
+
+  // Set up add-meal buttons, drag-and-drop, recipe collection clicks, and initial meal plan render
+  setupAddMealButtons();
+  setupMealDragAndDrop();
+  setupRecipeCollectionInteractions();
+
+  const storedPlan = loadMealPlan();
+  if (storedPlan) {
+    renderMealPlan(storedPlan);
+  } else {
+    const initialPlan = deriveMealPlanFromDOM();
+    saveMealPlan(initialPlan);
+  }
 });
 
