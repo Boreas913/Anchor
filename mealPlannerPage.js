@@ -69,6 +69,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Price cache (per ingredient name) in localStorage
+  const PRICE_CACHE_KEY = 'anchor_priceCache_v1';
+
+  function loadPriceCache() {
+    try {
+      const raw = localStorage.getItem(PRICE_CACHE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.error('Failed to load price cache', e);
+    }
+    return {};
+  }
+
+  function savePriceCache(cache) {
+    try {
+      localStorage.setItem(PRICE_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+      console.error('Failed to save price cache', e);
+    }
+  }
+
+  function attachPriceEditListener(priceSpan) {
+    if (!priceSpan) return;
+    priceSpan.addEventListener('click', () => {
+      const li = priceSpan.closest('.grocery-item');
+      if (!li) return;
+      const label = li.querySelector('label');
+      if (!label) return;
+      const name = label.textContent.trim();
+      const current = parseFloat(priceSpan.textContent.replace('$', '').trim()) || 0;
+      const input = prompt(`Enter price for "${name}" (in dollars):`, current ? current.toFixed(2) : '');
+      if (input === null) return;
+      const value = parseFloat(input);
+      if (isNaN(value) || value < 0) {
+        alert('Please enter a valid non-negative number.');
+        return;
+      }
+      priceSpan.textContent = `$${value.toFixed(2)}`;
+
+      const cache = loadPriceCache();
+      cache[name.toLowerCase()] = {
+        lastPrice: value,
+        lastUpdated: new Date().toISOString()
+      };
+      savePriceCache(cache);
+
+      saveGroceryChecklist();
+    });
+  }
+
   window.saveCustomItem = function() {
     const nameVal = document.getElementById("custom-item-modal-name").value;
     const priceVal = document.getElementById("custom-item-modal-price").value;
@@ -86,10 +136,11 @@ document.addEventListener('DOMContentLoaded', function() {
       newItem.className = "grocery-item";
       const uniqueId = "custom-" + Date.now();
 
+      const numericPrice = parseFloat(priceVal);
       newItem.innerHTML = `
           <input type="checkbox" id="${uniqueId}">
           <label for="${uniqueId}">${nameVal}</label>
-          <span class="item-price">$${parseFloat(priceVal).toFixed(2)}</span>
+          <span class="item-price">$${!isNaN(numericPrice) ? numericPrice.toFixed(2) : '0.00'}</span>
           <button class="remove-item-btn" aria-label="Remove item">&times;</button>
       `;
       list.appendChild(newItem);
@@ -103,17 +154,24 @@ document.addEventListener('DOMContentLoaded', function() {
       if (removeBtn) {
         attachRemoveListener(removeBtn);
       }
+
+      const priceSpan = newItem.querySelector('.item-price');
+      if (priceSpan) {
+        attachPriceEditListener(priceSpan);
+      }
+
+      // Update price cache for this custom item
+      if (!isNaN(numericPrice)) {
+        const cache = loadPriceCache();
+        cache[nameVal.toLowerCase()] = {
+          lastPrice: numericPrice,
+          lastUpdated: new Date().toISOString()
+        };
+        savePriceCache(cache);
+      }
     }
 
-    // Update estimated cost
-    const price = parseFloat(priceVal);
-    if (!isNaN(price)) {
-      runningTotal += price;
-      document.getElementById('estimated').textContent =
-        `Estimated: $${runningTotal.toFixed(2)}`;
-    }
-
-    // Persist updated list
+    // Persist updated list (recalculates estimated cost)
     saveGroceryChecklist();
 
     // Reset modal inputs
@@ -150,6 +208,16 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       total += priceNumber;
+
+      // Keep price cache in sync (only if > 0)
+      if (priceNumber > 0) {
+        const cache = loadPriceCache();
+        cache[label.textContent.trim().toLowerCase()] = {
+          lastPrice: priceNumber,
+          lastUpdated: new Date().toISOString()
+        };
+        savePriceCache(cache);
+      }
     });
 
     const payload = { items };
@@ -217,6 +285,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const removeBtn = li.querySelector('.remove-item-btn');
       if (removeBtn) {
         attachRemoveListener(removeBtn);
+      }
+
+      const priceSpan = li.querySelector('.item-price');
+      if (priceSpan) {
+        attachPriceEditListener(priceSpan);
       }
 
       list.appendChild(li);
@@ -599,6 +672,8 @@ document.addEventListener('DOMContentLoaded', function() {
       existingLabels.add(label.textContent.trim().toLowerCase());
     });
 
+    const priceCache = loadPriceCache();
+
     needed.forEach((_, ing) => {
       if (inventorySet.has(ing)) return;
       if (existingLabels.has(ing)) return;
@@ -607,13 +682,16 @@ document.addEventListener('DOMContentLoaded', function() {
       const list = document.getElementById(`list-${category}`) || document.getElementById('list-pantry');
       if (!list) return;
 
+      const cached = priceCache[ing.toLowerCase()];
+      const priceValue = cached && typeof cached.lastPrice === 'number' ? cached.lastPrice : 0;
+
       const li = document.createElement('li');
       li.className = 'grocery-item';
       const id = `auto-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       li.innerHTML = `
           <input type="checkbox" id="${id}">
           <label for="${id}">${ing}</label>
-          <span class="item-price">$0.00</span>
+          <span class="item-price">$${priceValue.toFixed(2)}</span>
           <button class="remove-item-btn" aria-label="Remove item">&times;</button>
       `;
 
@@ -621,6 +699,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (cb) attachCheckboxListener(cb);
       const rm = li.querySelector('.remove-item-btn');
       if (rm) attachRemoveListener(rm);
+
+      const priceSpan = li.querySelector('.item-price');
+      if (priceSpan) {
+        attachPriceEditListener(priceSpan);
+      }
 
       list.appendChild(li);
     });
@@ -647,6 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fillMealSlotWithRecipe(slot, recipeName);
 
     saveMealPlan(plan);
+    showRecipeToast(`Added ${recipeName} to ${day.charAt(0).toUpperCase() + day.slice(1)} ${mealType}`);
   }
 
   // Drag-and-drop between meal slots
@@ -756,12 +840,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  function showRecipeToast(message) {
+    const toast = document.getElementById('recipe-toast');
+    const msg = document.getElementById('recipe-toast-message');
+    if (!toast || !msg) return;
+    msg.textContent = message;
+    toast.style.display = 'block';
+    // force reflow so class transition works
+    void toast.offsetWidth;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 250);
+    }, 2000);
+  }
+
   // Attach listeners to any existing checkboxes / remove buttons (if present from HTML)
   document.querySelectorAll('.grocery-item input[type="checkbox"]').forEach(cb => {
     attachCheckboxListener(cb);
   });
   document.querySelectorAll('.grocery-item .remove-item-btn').forEach(btn => {
     attachRemoveListener(btn);
+  });
+  document.querySelectorAll('.grocery-item .item-price').forEach(span => {
+    attachPriceEditListener(span);
   });
 
   // Expose auto-suggest globally for button onclick

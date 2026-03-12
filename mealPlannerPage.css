@@ -543,6 +543,28 @@ select{
     color: #e74c3c;
 }
 
+/* Recipe toast notification */
+.recipe-toast {
+    position: fixed;
+    top: 20px;
+    left: 40%;
+    background: var(--color-secondary);
+    color: #ffffff;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    font-size: var(--font-size-small);
+    z-index: 1200;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.recipe-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .add-meal-btn {
     display: flex;
     align-items: center;
