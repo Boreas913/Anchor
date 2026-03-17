@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Price cache (per ingredient name) in localStorage
   const PRICE_CACHE_KEY = 'anchor_priceCache_v1';
+  const WEEK_ANCHOR_KEY = 'anchor_weekStart_v1';
 
   function loadPriceCache() {
     try {
@@ -90,32 +91,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  function openPriceEditorForItem(li) {
+    if (!li) return;
+    const label = li.querySelector('label');
+    const priceSpan = li.querySelector('.item-price');
+    if (!label || !priceSpan) return;
+
+    const name = label.textContent.trim();
+    const current = parseFloat(priceSpan.textContent.replace('$', '').trim()) || 0;
+    const input = prompt(`Enter price for "${name}" (in dollars):`, current ? current.toFixed(2) : '');
+    if (input === null) return;
+    const value = parseFloat(input);
+    if (isNaN(value) || value < 0) {
+      alert('Please enter a valid non-negative number.');
+      return;
+    }
+
+    priceSpan.textContent = `$${value.toFixed(2)}`;
+
+    const cache = loadPriceCache();
+    cache[name.toLowerCase()] = {
+      lastPrice: value,
+      lastUpdated: new Date().toISOString()
+    };
+    savePriceCache(cache);
+
+    saveGroceryChecklist();
+  }
+
   function attachPriceEditListener(priceSpan) {
     if (!priceSpan) return;
     priceSpan.addEventListener('click', () => {
-      const li = priceSpan.closest('.grocery-item');
-      if (!li) return;
-      const label = li.querySelector('label');
-      if (!label) return;
-      const name = label.textContent.trim();
-      const current = parseFloat(priceSpan.textContent.replace('$', '').trim()) || 0;
-      const input = prompt(`Enter price for "${name}" (in dollars):`, current ? current.toFixed(2) : '');
-      if (input === null) return;
-      const value = parseFloat(input);
-      if (isNaN(value) || value < 0) {
-        alert('Please enter a valid non-negative number.');
-        return;
-      }
-      priceSpan.textContent = `$${value.toFixed(2)}`;
+      openPriceEditorForItem(priceSpan.closest('.grocery-item'));
+    });
+  }
 
-      const cache = loadPriceCache();
-      cache[name.toLowerCase()] = {
-        lastPrice: value,
-        lastUpdated: new Date().toISOString()
-      };
-      savePriceCache(cache);
-
-      saveGroceryChecklist();
+  function attachPriceEditButtonListener(btn) {
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openPriceEditorForItem(btn.closest('.grocery-item'));
     });
   }
 
@@ -141,6 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <input type="checkbox" id="${uniqueId}">
           <label for="${uniqueId}">${nameVal}</label>
           <span class="item-price">$${!isNaN(numericPrice) ? numericPrice.toFixed(2) : '0.00'}</span>
+          <button class="edit-price-btn" aria-label="Edit price" type="button">✎</button>
           <button class="remove-item-btn" aria-label="Remove item">&times;</button>
       `;
       list.appendChild(newItem);
@@ -158,6 +175,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const priceSpan = newItem.querySelector('.item-price');
       if (priceSpan) {
         attachPriceEditListener(priceSpan);
+      }
+      const editBtn = newItem.querySelector('.edit-price-btn');
+      if (editBtn) {
+        attachPriceEditButtonListener(editBtn);
       }
 
       // Update price cache for this custom item
@@ -273,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <input type="checkbox" id="${checkboxId}">
           <label for="${checkboxId}">${itemData.name}</label>
           <span class="item-price">$${Number(itemData.price || 0).toFixed(2)}</span>
+          <button class="edit-price-btn" aria-label="Edit price" type="button">✎</button>
           <button class="remove-item-btn" aria-label="Remove item">&times;</button>
       `;
 
@@ -291,6 +313,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (priceSpan) {
         attachPriceEditListener(priceSpan);
       }
+      const editBtn = li.querySelector('.edit-price-btn');
+      if (editBtn) {
+        attachPriceEditButtonListener(editBtn);
+      }
 
       list.appendChild(li);
     });
@@ -305,14 +331,31 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // --- WEEKLY MEAL DATES (This Week's Meals) ---
-  function updateWeekDates() {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  function formatISODate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
-    // Find Monday of the current week
-    const monday = new Date(today);
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // if Sunday, go back 6 days
-    monday.setDate(today.getDate() + diff);
+  function getWeekStartMonday(today = new Date()) {
+    const d = new Date(today);
+    const dow = d.getDay(); // 0=Sun..6=Sat
+
+    // If Sunday, treat next Monday as the start of the new week
+    if (dow === 0) {
+      d.setDate(d.getDate() + 1);
+      return d;
+    }
+
+    // Otherwise, go back to Monday of current week
+    const diff = 1 - dow;
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function updateWeekDates() {
+    const monday = getWeekStartMonday(new Date());
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -485,7 +528,7 @@ document.addEventListener('DOMContentLoaded', function() {
         addBtn.className = 'add-meal-btn';
         addBtn.textContent = '+ Add Recipe';
         slot.appendChild(addBtn);
-        setupAddMealButtons();
+        // add-meal buttons use event delegation; nothing to rebind here
       });
     }
   }
@@ -692,6 +735,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <input type="checkbox" id="${id}">
           <label for="${id}">${ing}</label>
           <span class="item-price">$${priceValue.toFixed(2)}</span>
+          <button class="edit-price-btn" aria-label="Edit price" type="button">✎</button>
           <button class="remove-item-btn" aria-label="Remove item">&times;</button>
       `;
 
@@ -704,11 +748,91 @@ document.addEventListener('DOMContentLoaded', function() {
       if (priceSpan) {
         attachPriceEditListener(priceSpan);
       }
+      const editBtn = li.querySelector('.edit-price-btn');
+      if (editBtn) {
+        attachPriceEditButtonListener(editBtn);
+      }
 
       list.appendChild(li);
     });
 
     saveGroceryChecklist();
+  }
+
+  function resetGroceryChecklist() {
+    // Clear UI lists
+    document.querySelectorAll('.grocery-list').forEach(list => {
+      list.innerHTML = '';
+    });
+
+    // Clear storage (but keep price cache)
+    try {
+      localStorage.setItem(GROCERY_STORAGE_KEY, JSON.stringify({ items: [] }));
+    } catch (e) {
+      console.error('Failed to reset grocery checklist storage', e);
+    }
+
+    runningTotal = 0;
+    const estimatedEl = document.getElementById('estimated');
+    if (estimatedEl) {
+      estimatedEl.textContent = `Estimated: $${runningTotal.toFixed(2)}`;
+    }
+  }
+
+  function resetMealPlan() {
+    const empty = getEmptyMealPlan();
+    saveMealPlan(empty);
+    renderMealPlan(empty);
+  }
+
+  function handleWeeklyReset() {
+    const now = new Date();
+    const weekStart = getWeekStartMonday(now);
+    const weekStartISO = formatISODate(weekStart);
+
+    let storedWeekStart = null;
+    try {
+      storedWeekStart = localStorage.getItem(WEEK_ANCHOR_KEY);
+    } catch (e) {
+      storedWeekStart = null;
+    }
+
+    const isSunday = now.getDay() === 0;
+    const isNewWeek = storedWeekStart && storedWeekStart !== weekStartISO;
+
+    // On Sundays, always reset for the upcoming week.
+    // Also reset if we detect the week anchor changed (user didn't open on Sunday).
+    if (isSunday || isNewWeek) {
+      try {
+        localStorage.setItem(WEEK_ANCHOR_KEY, weekStartISO);
+      } catch (e) {
+        console.error('Failed to set week anchor', e);
+      }
+
+      // Clear saved meal plan + grocery list and re-render empty state
+      try {
+        localStorage.setItem(MEAL_PLAN_KEY, JSON.stringify(getEmptyMealPlan()));
+      } catch (e) {
+        console.error('Failed to reset meal plan storage', e);
+      }
+
+      resetGroceryChecklist();
+      resetMealPlan();
+      updateWeekDates();
+      showRecipeToast('New week started — meal plan and grocery list reset');
+      return true;
+    }
+
+    // First run: set anchor if missing (no reset)
+    if (!storedWeekStart) {
+      try {
+        localStorage.setItem(WEEK_ANCHOR_KEY, weekStartISO);
+      } catch (e) {
+        console.error('Failed to initialize week anchor', e);
+      }
+    }
+
+    return false;
   }
 
   // --- MEAL SELECTION / INTERACTIONS ---
@@ -760,7 +884,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           saveMealPlan(plan);
           renderMealPlan(plan);
-          setupAddMealButtons();
+          // add-meal buttons use event delegation; nothing to rebind here
           setupMealDragAndDrop();
           dragSource = null;
         }
@@ -795,26 +919,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function setupAddMealButtons() {
-    document.querySelectorAll('.add-meal-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const slot = btn.closest('.meal-slot');
-        if (slot) {
-          // remember which slot user wants to fill
-          activeMealSlot = slot;
-          // switch to Recipe Collection tab and scroll to it
-          const recipeTabBtn = document.querySelector('.tabs .tab-btn[data-tab="recipe-collection"]');
-          if (recipeTabBtn) {
-            recipeTabBtn.click();
-          }
-          const recipeSection = document.getElementById('recipe-collection-tab');
-          if (recipeSection && typeof recipeSection.scrollIntoView === 'function') {
-            recipeSection.scrollIntoView({ behavior: 'smooth' });
-          }
-        }
-      });
-    });
+  function openRecipeCollectionForSlot(slot) {
+    if (!slot) return;
+    // remember which slot user wants to fill
+    activeMealSlot = slot;
+
+    // switch to Recipe Collection tab and scroll to it
+    const recipeTabBtn = document.querySelector('.tabs .tab-btn[data-tab="recipe-collection"]');
+    if (recipeTabBtn) {
+      recipeTabBtn.click();
+    }
+    const recipeSection = document.getElementById('recipe-collection-tab');
+    if (recipeSection && typeof recipeSection.scrollIntoView === 'function') {
+      recipeSection.scrollIntoView({ behavior: 'smooth' });
+    }
   }
+
+  // Use event delegation so newly-created + Add Recipe buttons always work
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.add-meal-btn');
+    if (!btn) return;
+    const slot = btn.closest('.meal-slot');
+    openRecipeCollectionForSlot(slot);
+  });
 
   function setupRecipeCollectionInteractions() {
     // Clicking a recipe in the collection assigns it either to the active slot
@@ -867,25 +994,32 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.grocery-item .item-price').forEach(span => {
     attachPriceEditListener(span);
   });
+  document.querySelectorAll('.grocery-item .edit-price-btn').forEach(btn => {
+    attachPriceEditButtonListener(btn);
+  });
 
   // Expose auto-suggest globally for button onclick
   window.autoSuggestMeals = autoSuggestMeals;
 
-  // Load any previously saved grocery checklist on page load
-  loadGroceryChecklist();
+  // If Sunday (or week changed), reset everything to empty for the new week
+  const didReset = handleWeeklyReset();
+
+  // Load any previously saved grocery checklist on page load (unless we just reset)
+  if (!didReset) {
+    loadGroceryChecklist();
+  }
 
   // Update the dates shown in the "This Week's Meals" section
   updateWeekDates();
 
-  // Set up add-meal buttons, drag-and-drop, recipe collection clicks, and initial meal plan render
-  setupAddMealButtons();
+  // Set up drag-and-drop, recipe collection clicks, and initial meal plan render
   setupMealDragAndDrop();
   setupRecipeCollectionInteractions();
 
   const storedPlan = loadMealPlan();
   if (storedPlan) {
     renderMealPlan(storedPlan);
-  } else {
+  } else if (!didReset) {
     const initialPlan = deriveMealPlanFromDOM();
     saveMealPlan(initialPlan);
   }
