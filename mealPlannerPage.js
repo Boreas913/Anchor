@@ -379,40 +379,474 @@ document.addEventListener('DOMContentLoaded', function() {
     'Overnight Oats': {
       id: 'overnight-oats',
       ingredients: ['oats', 'almond milk', 'chia seeds', 'banana'],
+      instructions: [
+        'In a jar, combine oats, almond milk, and chia seeds.',
+        'Stir until everything is evenly mixed.',
+        'Cover and refrigerate overnight.',
+        'In the morning, top with sliced banana and enjoy.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '5 min',
-      color: 'ffb3ba'
+      color: 'ffb3ba',
+      sourceUrl: ''
     },
     'Quinoa Salad': {
       id: 'quinoa-salad',
       ingredients: ['quinoa', 'tomatoes', 'spinach', 'olive oil'],
+      instructions: [
+        'Cook quinoa according to package directions and let it cool.',
+        'Chop tomatoes and add them to a bowl with spinach.',
+        'Add cooled quinoa to the bowl.',
+        'Drizzle with olive oil, toss well, and season to taste.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '20 min',
-      color: 'ffdfba'
+      color: 'ffdfba',
+      sourceUrl: ''
     },
     'Grilled Chicken': {
       id: 'grilled-chicken',
       ingredients: ['chicken breast', 'olive oil', 'garlic', 'spinach'],
+      instructions: [
+        'Season chicken with salt, pepper, and minced garlic.',
+        'Heat a grill pan or skillet over medium-high heat and add olive oil.',
+        'Cook chicken until done, then let it rest for a few minutes.',
+        'Serve with sautéed spinach (or fresh spinach) on the side.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '30 min',
-      color: 'baffc9'
+      color: 'baffc9',
+      sourceUrl: ''
     },
     'Mediterranean Bowl': {
       id: 'mediterranean-bowl',
       ingredients: ['quinoa', 'tomatoes', 'spinach', 'olive oil', 'chickpeas'],
+      instructions: [
+        'Cook and cool quinoa.',
+        'In a bowl, combine quinoa, chickpeas, spinach, and chopped tomatoes.',
+        'Drizzle with olive oil and mix thoroughly.',
+        'Taste and adjust seasoning before serving.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '25 min',
-      color: 'ffb3ba'
+      color: 'ffb3ba',
+      sourceUrl: ''
     },
     'Stir Fry': {
       id: 'stir-fry',
       ingredients: ['chicken breast', 'broccoli', 'bell peppers', 'soy sauce'],
+      instructions: [
+        'Slice chicken and cut vegetables into bite-size pieces.',
+        'Heat a skillet/wok and cook chicken until almost done.',
+        'Add broccoli and bell peppers; stir-fry until crisp-tender.',
+        'Pour in soy sauce and toss to coat. Serve immediately.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '20 min',
-      color: 'ffdfba'
+      color: 'ffdfba',
+      sourceUrl: ''
     },
     'Salmon & Veggies': {
       id: 'salmon-veggies',
       ingredients: ['salmon', 'broccoli', 'tomatoes', 'olive oil'],
+      instructions: [
+        'Preheat oven (or heat a pan) and season salmon.',
+        'Roast or steam broccoli until tender.',
+        'Warm tomatoes briefly in a pan with olive oil.',
+        'Plate salmon with broccoli and tomatoes; drizzle with any remaining olive oil.'
+      ],
+      tags: ['Lactose-Free', 'Gluten-Free'],
       time: '30 min',
-      color: 'baffc9'
+      color: 'baffc9',
+      sourceUrl: ''
     }
   };
+
+  // --- RECIPE DETAILS MODAL ---
+  function openRecipeDetailsModal(recipeName) {
+    const recipe = RECIPE_DATA[recipeName];
+    if (!recipe) return;
+
+    const overlay = document.getElementById('recipe-details-overlay');
+    const titleEl = document.getElementById('recipe-details-title');
+    const tagsEl = document.getElementById('recipe-details-tags');
+    const sourceWrap = document.getElementById('recipe-details-source-link-wrap');
+    const sourceLinkEl = document.getElementById('recipe-details-source-link');
+    const ingredientsEl = document.getElementById('recipe-details-ingredients');
+    const instructionsEl = document.getElementById('recipe-details-instructions');
+
+    if (!overlay || !titleEl || !tagsEl || !sourceWrap || !sourceLinkEl || !ingredientsEl || !instructionsEl) return;
+
+    titleEl.textContent = recipeName;
+
+    // Tags
+    tagsEl.innerHTML = '';
+    (recipe.tags || []).forEach(tag => {
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.textContent = tag;
+      tagsEl.appendChild(span);
+    });
+
+    // Optional source link
+    if (recipe.sourceUrl) {
+      sourceWrap.style.display = 'block';
+      sourceLinkEl.href = recipe.sourceUrl;
+    } else {
+      sourceWrap.style.display = 'none';
+    }
+
+    // Ingredients
+    ingredientsEl.innerHTML = '';
+    (recipe.ingredients || []).forEach(ing => {
+      const li = document.createElement('li');
+      li.textContent = ing;
+      ingredientsEl.appendChild(li);
+    });
+
+    // Instructions
+    instructionsEl.innerHTML = '';
+    (recipe.instructions || []).forEach(step => {
+      const li = document.createElement('li');
+      li.textContent = step;
+      instructionsEl.appendChild(li);
+    });
+
+    overlay.style.display = 'flex';
+  }
+
+  function closeRecipeDetailsModal() {
+    const overlay = document.getElementById('recipe-details-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  // --- IMPORT RECIPE FROM URL (best-effort JSON-LD + manual fallback) ---
+  const RECIPE_COLLECTION_STORAGE_KEY = 'anchor_recipeCollection_v1';
+  const RECIPE_IMAGE_COLORS = ['ffb3ba', 'ffdfba', 'baffc9', 'ffd6a5', 'cdb4db'];
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function stableColorFromName(name) {
+    const s = String(name || '');
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    return RECIPE_IMAGE_COLORS[hash % RECIPE_IMAGE_COLORS.length];
+  }
+
+  function getImportedRecipesFromStorage() {
+    try {
+      const raw = localStorage.getItem(RECIPE_COLLECTION_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Failed to load recipe collection', e);
+      return [];
+    }
+  }
+
+  function saveImportedRecipesToStorage(recipes) {
+    try {
+      localStorage.setItem(RECIPE_COLLECTION_STORAGE_KEY, JSON.stringify(recipes));
+    } catch (e) {
+      console.error('Failed to save recipe collection', e);
+    }
+  }
+
+  function getUniqueImportedRecipeName(baseName) {
+    const base = String(baseName || '').trim();
+    const start = base || 'Imported Recipe';
+    if (!RECIPE_DATA[start]) return start;
+
+    let i = 2;
+    while (RECIPE_DATA[`${start} (${i})`]) i++;
+    return `${start} (${i})`;
+  }
+
+  function upsertRecipeInRECIPE_DATA(recipe) {
+    if (!recipe || !recipe.name) return;
+    const name = recipe.name;
+    RECIPE_DATA[name] = {
+      id: recipe.id || `import-${Date.now()}`,
+      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+      instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
+      tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+      time: recipe.time || '—',
+      color: recipe.color || stableColorFromName(name),
+      sourceUrl: recipe.sourceUrl || ''
+    };
+  }
+
+  function renderImportedRecipeCards() {
+    const grid = document.querySelector('#recipe-collection-tab .recipe-grid');
+    if (!grid) return;
+
+    // Remove previously-rendered imported cards (default cards stay).
+    grid.querySelectorAll('.recipe-card[data-imported="true"]').forEach(el => el.remove());
+
+    const imported = getImportedRecipesFromStorage();
+    imported.forEach(recipe => {
+      // Ensure imported recipes are available to the rest of the app logic.
+      upsertRecipeInRECIPE_DATA(recipe);
+
+      const name = recipe.name;
+      if (!name) return;
+
+      const color = recipe.color || stableColorFromName(name);
+      const timeText = recipe.time || '—';
+      const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+
+      const card = document.createElement('div');
+      card.className = 'recipe-card';
+      card.setAttribute('data-imported', 'true');
+      card.setAttribute('data-recipe-name', name);
+      card.innerHTML = `
+        <img src="https://via.placeholder.com/200x150/${color}/ffffff?text=Recipe" alt="${escapeHtml(name)}">
+        <div class="recipe-card-content">
+          <h4>${escapeHtml(name)}</h4>
+          <div class="recipe-tags">
+            ${tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : ''}
+          </div>
+          <div class="recipe-meta">
+            <span>${escapeHtml(timeText)}</span>
+            <span>•</span>
+            <span>— cal</span>
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+  }
+
+  async function tryParseRecipeFromUrl(url) {
+    // Due to CORS, many recipe sites will not be fetchable from the browser.
+    // When it fails, we still let the user manually fill ingredients + instructions.
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+
+      const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+      for (const script of jsonLdScripts) {
+        const raw = script.textContent || '';
+        if (!raw) continue;
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          continue;
+        }
+
+        const candidates = Array.isArray(data) ? data : [data];
+        for (const c of candidates) {
+          const obj = c && (c['@type'] ? c : c['@graph'] ? { '@graph': c['@graph'] } : null);
+          // If we have an array, look for Recipe
+          const maybeRecipes = Array.isArray(obj) ? obj : null;
+          const list = obj && obj['@graph'] ? obj['@graph'] : Array.isArray(c) ? c : candidates;
+          const nodes = Array.isArray(list) ? list : candidates;
+
+          for (const node of nodes) {
+            const t = node && node['@type'];
+            const isRecipe = t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'));
+            if (!isRecipe) continue;
+
+            const name = node.name || '';
+            const ingredient = node.recipeIngredient || [];
+            const instructions = node.recipeInstructions || node.instructions || [];
+
+            const ingredients = Array.isArray(ingredient) ? ingredient.map(String) : [];
+            const instructionSteps = [];
+
+            // recipeInstructions can be array, object with itemListElement, or string.
+            if (Array.isArray(instructions)) {
+              instructions.forEach(it => {
+                if (typeof it === 'string') instructionSteps.push(it);
+                else if (it && it.text) instructionSteps.push(String(it.text));
+                else if (it && it.step) instructionSteps.push(String(it.step));
+              });
+            } else if (instructions && typeof instructions === 'object') {
+              if (instructions.itemListElement && Array.isArray(instructions.itemListElement)) {
+                instructions.itemListElement.forEach(el => {
+                  const v = el && (el.text || el.name);
+                  if (v) instructionSteps.push(String(v));
+                });
+              } else if (instructions.text) {
+                instructionSteps.push(String(instructions.text));
+              }
+            } else if (typeof instructions === 'string') {
+              instructionSteps.push(instructions);
+            }
+
+            return {
+              name: String(name || ''),
+              ingredients,
+              instructions: instructionSteps
+            };
+          }
+        }
+      }
+
+      return null;
+    } catch (e) {
+      // Most likely CORS failure.
+      console.warn('URL fetch/parse failed (likely CORS).', e);
+      return null;
+    }
+  }
+
+  function openImportUrlModal() {
+    const overlay = document.getElementById('import-url-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    // Reset fields
+    const urlInput = document.getElementById('import-url-input');
+    const nameInput = document.getElementById('import-url-name');
+    const ingArea = document.getElementById('import-url-ingredients');
+    const instArea = document.getElementById('import-url-instructions');
+    const status = document.getElementById('import-url-status');
+
+    if (urlInput) urlInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (ingArea) ingArea.value = '';
+    if (instArea) instArea.value = '';
+    if (status) status.textContent = '';
+  }
+
+  function closeImportUrlModal() {
+    const overlay = document.getElementById('import-url-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+  }
+
+  async function tryParseAndFillImportModal() {
+    const urlInput = document.getElementById('import-url-input');
+    const nameInput = document.getElementById('import-url-name');
+    const ingArea = document.getElementById('import-url-ingredients');
+    const instArea = document.getElementById('import-url-instructions');
+    const status = document.getElementById('import-url-status');
+
+    if (!urlInput) return;
+    const url = String(urlInput.value || '').trim();
+    if (!url) {
+      if (status) status.textContent = 'Please paste a recipe URL.';
+      return;
+    }
+
+    if (status) status.textContent = 'Fetching and parsing...';
+    const parsed = await tryParseRecipeFromUrl(url);
+
+    // If parsing succeeded, fill fields.
+    if (parsed && parsed.name) {
+      if (nameInput) nameInput.value = parsed.name;
+      if (ingArea) ingArea.value = (parsed.ingredients || []).join('\n');
+      if (instArea) instArea.value = (parsed.instructions || []).join('\n');
+      if (status) status.textContent = 'Parsed! You can edit ingredients/instructions before saving.';
+      return;
+    }
+
+    // Fallback: derive name from URL and leave ingredients/instructions for manual entry.
+    const derivedName = (() => {
+      try {
+        const u = new URL(url);
+        const last = u.pathname.split('/').filter(Boolean).pop() || 'Imported Recipe';
+        return decodeURIComponent(last).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      } catch {
+        return 'Imported Recipe';
+      }
+    })();
+
+    if (nameInput) nameInput.value = derivedName;
+    if (ingArea) ingArea.value = '';
+    if (instArea) instArea.value = '';
+    if (status) status.textContent = 'Could not parse this site in the browser (CORS). Add ingredients/instructions manually and save.';
+  }
+
+  function readImportModalTags() {
+    const lactose = document.getElementById('import-tag-lactose');
+    const gluten = document.getElementById('import-tag-gluten');
+    const tags = [];
+    if (lactose && lactose.checked) tags.push('Lactose-Free');
+    if (gluten && gluten.checked) tags.push('Gluten-Free');
+    return tags;
+  }
+
+  function parseTextareaLines(text) {
+    return String(text || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function saveImportedRecipe() {
+    const urlInput = document.getElementById('import-url-input');
+    const nameInput = document.getElementById('import-url-name');
+    const ingArea = document.getElementById('import-url-ingredients');
+    const instArea = document.getElementById('import-url-instructions');
+
+    const url = String(urlInput?.value || '').trim();
+    const baseName = String(nameInput?.value || '').trim();
+    if (!baseName) {
+      alert('Please provide a recipe name.');
+      return;
+    }
+
+    const ingredients = parseTextareaLines(ingArea?.value || '');
+    const instructions = parseTextareaLines(instArea?.value || '');
+    const tags = readImportModalTags();
+
+    const imported = getImportedRecipesFromStorage();
+
+    // Upsert by source URL if possible; otherwise upsert by name.
+    const existingIndex = url
+      ? imported.findIndex(r => r.sourceUrl === url)
+      : imported.findIndex(r => r.name === baseName);
+
+    const finalName =
+      existingIndex >= 0 ? imported[existingIndex].name : getUniqueImportedRecipeName(baseName);
+
+    const recipeObj = {
+      id: `import-${Date.now()}`,
+      name: finalName,
+      sourceUrl: url,
+      ingredients,
+      instructions,
+      tags,
+      time: '—',
+      color: stableColorFromName(finalName)
+    };
+
+    if (existingIndex >= 0) imported[existingIndex] = recipeObj;
+    else imported.push(recipeObj);
+
+    saveImportedRecipesToStorage(imported);
+    upsertRecipeInRECIPE_DATA(recipeObj);
+
+    renderImportedRecipeCards();
+    closeImportUrlModal();
+    showRecipeToast(`Imported ${finalName} into recipe collection`);
+  }
+
+  // Global functions for inline onclick
+  window.openImportUrlModal = openImportUrlModal;
+  window.closeImportUrlModal = closeImportUrlModal;
+  window.tryParseRecipeFromUrl = tryParseAndFillImportModal;
+  window.saveImportedRecipe = saveImportedRecipe;
+
+  // Close modal when clicking outside
+  document.addEventListener('click', (e) => {
+    const overlay = document.getElementById('import-url-overlay');
+    if (!overlay) return;
+    if (overlay.style.display !== 'flex') return;
+    if (e.target === overlay) closeImportUrlModal();
+  });
 
   function getInventoryIngredients() {
     const set = new Set();
@@ -547,7 +981,13 @@ document.addEventListener('DOMContentLoaded', function() {
     emptySlots.forEach(slot => {
       const candidates = Object.keys(RECIPE_DATA).filter(name => {
         const count = usageCounts[name] || 0;
-        return count < maxPerWeek;
+        const recipe = RECIPE_DATA[name];
+        return (
+          count < maxPerWeek &&
+          recipe &&
+          Array.isArray(recipe.ingredients) &&
+          recipe.ingredients.length > 0
+        );
       });
 
       if (!candidates.length) {
@@ -944,27 +1384,79 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   function setupRecipeCollectionInteractions() {
-    // Clicking a recipe in the collection assigns it either to the active slot
-    // or to the first empty slot if none is active.
-    document.querySelectorAll('#recipe-collection-tab .recipe-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const titleEl = card.querySelector('h4');
-        if (!titleEl) return;
-        const recipeName = titleEl.textContent.trim();
+    const collection = document.getElementById('recipe-collection-tab');
+    if (!collection) return;
 
-        let targetSlot = activeMealSlot;
-        if (!targetSlot) {
-          const emptyAddBtn = document.querySelector('.meal-slot .add-meal-btn');
-          if (emptyAddBtn) {
-            targetSlot = emptyAddBtn.closest('.meal-slot');
-          }
+    // Delegated click: works for both default recipes and imported recipes.
+    collection.addEventListener('click', (e) => {
+      const card = e.target.closest('.recipe-card');
+      if (!card) return;
+
+      // Image click opens the recipe details modal (handled elsewhere).
+      if (e.target && e.target.tagName === 'IMG') return;
+
+      const titleEl = card.querySelector('h4');
+      if (!titleEl) return;
+      const recipeName = titleEl.textContent.trim();
+      if (!recipeName) return;
+
+      let targetSlot = activeMealSlot;
+      if (!targetSlot) {
+        const emptyAddBtn = document.querySelector('.meal-slot .add-meal-btn');
+        if (emptyAddBtn) {
+          targetSlot = emptyAddBtn.closest('.meal-slot');
         }
-        if (targetSlot) {
-          assignRecipeToSlot(targetSlot, recipeName);
-          activeMealSlot = null;
-        }
-      });
+      }
+
+      if (targetSlot) {
+        assignRecipeToSlot(targetSlot, recipeName);
+        activeMealSlot = null;
+      }
     });
+  }
+
+  // Clicking a recipe picture opens the recipe details modal
+  document.addEventListener('click', (e) => {
+    // Recipe Collection images
+    const collectionImg = e.target.closest('#recipe-collection-tab .recipe-card img');
+    if (collectionImg) {
+      const card = collectionImg.closest('.recipe-card');
+      const titleEl = card ? card.querySelector('h4') : null;
+      const recipeName = titleEl ? titleEl.textContent.trim() : '';
+      if (recipeName) {
+        e.preventDefault();
+        e.stopPropagation();
+        openRecipeDetailsModal(recipeName);
+      }
+      return;
+    }
+
+    // Weekly mini cards (optional convenience)
+    const miniImg = e.target.closest('.recipe-card-mini img');
+    if (miniImg) {
+      const miniCard = miniImg.closest('.recipe-card-mini');
+      const nameEl = miniCard ? miniCard.querySelector('.recipe-name') : null;
+      const recipeName = nameEl ? nameEl.textContent.trim() : '';
+      if (recipeName) {
+        e.preventDefault();
+        e.stopPropagation();
+        openRecipeDetailsModal(recipeName);
+      }
+    }
+  });
+
+  // Close modal handlers
+  const recipeDetailsOverlay = document.getElementById('recipe-details-overlay');
+  const recipeDetailsCloseBtn = document.getElementById('recipe-details-close');
+  if (recipeDetailsOverlay) {
+    recipeDetailsOverlay.addEventListener('click', (e) => {
+      if (e.target === recipeDetailsOverlay) {
+        closeRecipeDetailsModal();
+      }
+    });
+  }
+  if (recipeDetailsCloseBtn) {
+    recipeDetailsCloseBtn.addEventListener('click', closeRecipeDetailsModal);
   }
 
   function showRecipeToast(message) {
@@ -1015,6 +1507,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set up drag-and-drop, recipe collection clicks, and initial meal plan render
   setupMealDragAndDrop();
   setupRecipeCollectionInteractions();
+  renderImportedRecipeCards();
 
   const storedPlan = loadMealPlan();
   if (storedPlan) {
