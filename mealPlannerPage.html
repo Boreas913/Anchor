@@ -45,9 +45,12 @@
             </div>
 
             <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="grocery">Grocery Checklist</button>
-                <button class="tab-btn" data-tab="recipes">Weekly Recipes</button>
+            <div class="tabs-row">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="grocery">Grocery Checklist</button>
+                    <button class="tab-btn" data-tab="recipes">Weekly Recipes</button>
+                </div>
+                <button class="collapse-section-btn" type="button" data-collapse-target="meal-planning-section" aria-label="Collapse section">▾</button>
             </div>
 
             <!-- Grocery Checklist Tab -->
@@ -270,9 +273,12 @@
             </div>
 
             <!-- Tabs -->
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="inventory">Inventory</button>
-                <button class="tab-btn" data-tab="recipe-collection">Recipe Collection</button>
+            <div class="tabs-row">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="inventory">Inventory</button>
+                    <button class="tab-btn" data-tab="recipe-collection">Recipe Collection</button>
+                </div>
+                <button class="collapse-section-btn" type="button" data-collapse-target="secondary-section" aria-label="Collapse section">▾</button>
             </div>
 
             <!-- Inventory Tab -->
@@ -330,13 +336,9 @@
                 <div class="recipe-collection-header">
                     <h2>All Recipes</h2>
                     <div class="recipe-actions">
-                        <button class="btn-secondary">
+                        <button class="btn-secondary" onclick="openAddRecipeModal()">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff9a9e'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" alt="Add">
                             Add Recipe
-                        </button>
-                        <button class="btn-secondary" onclick="openImportUrlModal()">
-                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff9a9e'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" alt="Import">
-                            Import from URL
                         </button>
                         <button class="btn-secondary">
                             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff9a9e'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E" alt="Discover">
@@ -461,6 +463,7 @@
 
             <div class="recipe-details-meta">
                 <div class="recipe-details-tags" id="recipe-details-tags"></div>
+                <div id="recipe-details-calories" class="recipe-details-calories">— cal</div>
                 <div id="recipe-details-source-link-wrap" class="recipe-details-source" style="display: none;">
                     <a id="recipe-details-source-link" href="#" target="_blank" rel="noopener noreferrer">Open original recipe</a>
                 </div>
@@ -479,55 +482,65 @@
         </div>
     </div>
 
-    <!-- Import Recipe From URL Modal -->
-    <div id="import-url-overlay" class="import-url-overlay" style="display: none;">
-        <div class="import-url-modal" role="dialog" aria-modal="true" aria-labelledby="import-url-title">
+    <!-- Add Custom Recipe Modal -->
+    <div id="add-recipe-overlay" class="import-url-overlay" style="display: none;">
+        <div class="import-url-modal" role="dialog" aria-modal="true" aria-labelledby="add-recipe-title">
             <div class="import-url-header">
-                <h2 id="import-url-title">Import Recipe from URL</h2>
-                <button class="close-btn" id="import-url-close" aria-label="Close import modal" onclick="closeImportUrlModal()">&times;</button>
+                <h2 id="add-recipe-title">Add Custom Recipe</h2>
+                <button class="close-btn" aria-label="Close add recipe modal" onclick="closeAddRecipeModal()">&times;</button>
             </div>
 
             <div class="import-url-body">
+                <input id="add-recipe-original-name" type="hidden" />
                 <div class="import-url-field">
-                    <label for="import-url-input" class="import-url-label">Recipe URL</label>
-                    <input id="import-url-input" class="input-primary" type="url" placeholder="https://example.com/your-recipe" />
-                </div>
-
-                <div class="import-url-actions-row">
-                    <button class="btn-secondary" type="button" onclick="tryParseRecipeFromUrl()">Fetch & Parse</button>
-                    <button class="btn-secondary" type="button" onclick="closeImportUrlModal()">Cancel</button>
-                </div>
-
-                <div id="import-url-status" class="import-url-status"></div>
-
-                <div class="import-url-field">
-                    <label for="import-url-name" class="import-url-label">Recipe Name</label>
-                    <input id="import-url-name" class="input-primary" type="text" placeholder="Recipe name" />
+                    <label for="add-recipe-name" class="import-url-label">Recipe Name</label>
+                    <input id="add-recipe-name" class="input-primary" type="text" placeholder="Recipe name" />
                 </div>
 
                 <div class="import-url-field">
-                    <label for="import-url-ingredients" class="import-url-label">Ingredients (one per line)</label>
-                    <textarea id="import-url-ingredients" class="input-primary" rows="6" placeholder="e.g. oats&#10;almond milk&#10;chia seeds"></textarea>
+                    <label for="add-recipe-time" class="import-url-label">Prep/Cook Time</label>
+                    <input id="add-recipe-time" class="input-primary" type="text" placeholder="e.g. 25 min" />
                 </div>
 
                 <div class="import-url-field">
-                    <label for="import-url-instructions" class="import-url-label">Directions / Instructions (one per line)</label>
-                    <textarea id="import-url-instructions" class="input-primary" rows="6" placeholder="e.g. Mix ingredients&#10;Refrigerate overnight"></textarea>
+                    <label for="add-recipe-calories" class="import-url-label">Calories</label>
+                    <input id="add-recipe-calories" class="input-primary" type="number" min="0" step="1" placeholder="e.g. 420" />
+                </div>
+
+                <div class="import-url-field">
+                    <label for="add-recipe-source" class="import-url-label">Optional Source URL</label>
+                    <input id="add-recipe-source" class="input-primary" type="url" placeholder="https://example.com/recipe" />
+                </div>
+
+                <div class="import-url-field">
+                    <label for="add-recipe-image" class="import-url-label">Optional Image URL</label>
+                    <input id="add-recipe-image" class="input-primary" type="url" placeholder="https://example.com/recipe-image.jpg" />
+                </div>
+
+                <div class="import-url-field">
+                    <label for="add-recipe-ingredients" class="import-url-label">Ingredients (one per line)</label>
+                    <textarea id="add-recipe-ingredients" class="input-primary" rows="6" placeholder="e.g. oats&#10;almond milk&#10;chia seeds"></textarea>
+                </div>
+
+                <div class="import-url-field">
+                    <label for="add-recipe-instructions" class="import-url-label">Directions / Instructions (one per line)</label>
+                    <textarea id="add-recipe-instructions" class="input-primary" rows="6" placeholder="e.g. Mix ingredients&#10;Refrigerate overnight"></textarea>
                 </div>
 
                 <div class="import-url-tags-row">
                     <label class="import-url-tag">
-                        <input type="checkbox" id="import-tag-lactose" checked />
+                        <input type="checkbox" id="add-tag-lactose" checked />
                         Lactose-Free
                     </label>
                     <label class="import-url-tag">
-                        <input type="checkbox" id="import-tag-gluten" checked />
+                        <input type="checkbox" id="add-tag-gluten" checked />
                         Gluten-Free
                     </label>
                 </div>
 
                 <div class="import-url-actions-row" style="margin-top: 14px;">
-                    <button class="btn-primary" type="button" onclick="saveImportedRecipe()">Save to Recipe Collection</button>
+                    <button id="add-recipe-save-btn" class="btn-primary" type="button" onclick="saveCustomRecipe()">Save to Recipe Collection</button>
+                    <button class="btn-secondary" type="button" onclick="closeAddRecipeModal()">Cancel</button>
                 </div>
             </div>
         </div>

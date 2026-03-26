@@ -1,29 +1,33 @@
 // Tab Switching Functionality
 document.addEventListener('DOMContentLoaded', function() {
-    // Tab buttons
+    // Tab buttons (scoped per section)
     const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetTab = button.getAttribute('data-tab');
+            const parentSection = button.closest('section');
+            if (parentSection && parentSection.classList.contains('section-collapsed')) {
+              parentSection.classList.remove('section-collapsed');
+              const collapseBtn = parentSection.querySelector('.collapse-section-btn');
+              if (collapseBtn) collapseBtn.classList.remove('collapsed');
+            }
             
-            // Remove active class from all tabs and contents
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
+            // Remove active class only in this section
+            const localTabButtons = parentSection ? parentSection.querySelectorAll('.tab-btn') : [];
+            const localTabContents = parentSection ? parentSection.querySelectorAll('.tab-content') : [];
+            localTabButtons.forEach(btn => btn.classList.remove('active'));
+            localTabContents.forEach(content => content.classList.remove('active'));
             
             // Add active class to clicked tab
             button.classList.add('active');
             
-            // Show corresponding content
-            if (targetTab === 'grocery') {
-                document.getElementById('grocery-tab').classList.add('active');
-            } else if (targetTab === 'recipes') {
-                document.getElementById('recipes-tab').classList.add('active');
-            } else if (targetTab === 'inventory') {
-                document.getElementById('inventory-tab').classList.add('active');
-            } else if (targetTab === 'recipe-collection') {
-                document.getElementById('recipe-collection-tab').classList.add('active');
+            // Show corresponding content only in this section
+            if (parentSection) {
+              const targetContent = parentSection.querySelector(`#${targetTab}-tab`);
+              if (targetContent) {
+                targetContent.classList.add('active');
+              }
             }
         });
     });
@@ -387,6 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '5 min',
+      calories: 320,
       color: 'ffb3ba',
       sourceUrl: ''
     },
@@ -401,6 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '20 min',
+      calories: 380,
       color: 'ffdfba',
       sourceUrl: ''
     },
@@ -415,6 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '30 min',
+      calories: 450,
       color: 'baffc9',
       sourceUrl: ''
     },
@@ -429,6 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '25 min',
+      calories: 450,
       color: 'ffb3ba',
       sourceUrl: ''
     },
@@ -443,6 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '20 min',
+      calories: 380,
       color: 'ffdfba',
       sourceUrl: ''
     },
@@ -457,6 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ],
       tags: ['Lactose-Free', 'Gluten-Free'],
       time: '30 min',
+      calories: 520,
       color: 'baffc9',
       sourceUrl: ''
     }
@@ -472,6 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tagsEl = document.getElementById('recipe-details-tags');
     const sourceWrap = document.getElementById('recipe-details-source-link-wrap');
     const sourceLinkEl = document.getElementById('recipe-details-source-link');
+    const caloriesEl = document.getElementById('recipe-details-calories');
     const ingredientsEl = document.getElementById('recipe-details-ingredients');
     const instructionsEl = document.getElementById('recipe-details-instructions');
 
@@ -494,6 +505,12 @@ document.addEventListener('DOMContentLoaded', function() {
       sourceLinkEl.href = recipe.sourceUrl;
     } else {
       sourceWrap.style.display = 'none';
+    }
+
+    // Calories
+    if (caloriesEl) {
+      const cal = Number(recipe.calories);
+      caloriesEl.textContent = Number.isFinite(cal) && cal >= 0 ? `${Math.round(cal)} cal` : '— cal';
     }
 
     // Ingredients
@@ -540,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return RECIPE_IMAGE_COLORS[hash % RECIPE_IMAGE_COLORS.length];
   }
 
-  function getImportedRecipesFromStorage() {
+  function getRecipeCollectionFromStorage() {
     try {
       const raw = localStorage.getItem(RECIPE_COLLECTION_STORAGE_KEY);
       if (!raw) return [];
@@ -552,7 +569,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function saveImportedRecipesToStorage(recipes) {
+  function saveRecipeCollectionToStorage(recipes) {
     try {
       localStorage.setItem(RECIPE_COLLECTION_STORAGE_KEY, JSON.stringify(recipes));
     } catch (e) {
@@ -560,9 +577,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  function getUniqueImportedRecipeName(baseName) {
+  function getUniqueRecipeName(baseName) {
     const base = String(baseName || '').trim();
-    const start = base || 'Imported Recipe';
+    const start = base || 'Custom Recipe';
     if (!RECIPE_DATA[start]) return start;
 
     let i = 2;
@@ -579,203 +596,104 @@ document.addEventListener('DOMContentLoaded', function() {
       instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
       tags: Array.isArray(recipe.tags) ? recipe.tags : [],
       time: recipe.time || '—',
+      calories: Number.isFinite(Number(recipe.calories)) ? Number(recipe.calories) : null,
       color: recipe.color || stableColorFromName(name),
-      sourceUrl: recipe.sourceUrl || ''
+      sourceUrl: recipe.sourceUrl || '',
+      imageUrl: recipe.imageUrl || ''
     };
   }
 
-  function renderImportedRecipeCards() {
+  function buildRecipeCardInnerHtml(recipe) {
+    const name = recipe.name;
+    const color = recipe.color || stableColorFromName(name);
+    const imageUrl = recipe.imageUrl || `https://via.placeholder.com/200x150/${color}/ffffff?text=Recipe`;
+    const timeText = recipe.time || '—';
+    const caloriesText = Number.isFinite(Number(recipe.calories)) ? `${Math.round(Number(recipe.calories))} cal` : '— cal';
+    const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+
+    return `
+      <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(name)}">
+      <div class="recipe-card-content">
+        <h4>${escapeHtml(name)}</h4>
+        <button class="add-recipe-to-week-btn" type="button" aria-label="Add recipe to weekly plan">+</button>
+        <button class="edit-recipe-btn" type="button" aria-label="Edit recipe">✎</button>
+        <div class="recipe-tags">
+          ${tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : ''}
+        </div>
+        <div class="recipe-meta">
+          <span>${escapeHtml(timeText)}</span>
+          <span>•</span>
+          <span>${escapeHtml(caloriesText)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderRecipeCollectionCards() {
     const grid = document.querySelector('#recipe-collection-tab .recipe-grid');
     if (!grid) return;
 
     // Remove previously-rendered imported cards (default cards stay).
     grid.querySelectorAll('.recipe-card[data-imported="true"]').forEach(el => el.remove());
 
-    const imported = getImportedRecipesFromStorage();
-    imported.forEach(recipe => {
-      // Ensure imported recipes are available to the rest of the app logic.
+    const storedRecipes = getRecipeCollectionFromStorage();
+    storedRecipes.forEach(recipe => {
       upsertRecipeInRECIPE_DATA(recipe);
-
       const name = recipe.name;
       if (!name) return;
 
-      const color = recipe.color || stableColorFromName(name);
-      const timeText = recipe.time || '—';
-      const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+      // If recipe already exists in default cards, update that card.
+      let existingCard = null;
+      grid.querySelectorAll('.recipe-card').forEach(card => {
+        const h4 = card.querySelector('h4');
+        if (h4 && h4.textContent.trim() === name) {
+          existingCard = card;
+        }
+      });
 
-      const card = document.createElement('div');
-      card.className = 'recipe-card';
-      card.setAttribute('data-imported', 'true');
-      card.setAttribute('data-recipe-name', name);
-      card.innerHTML = `
-        <img src="https://via.placeholder.com/200x150/${color}/ffffff?text=Recipe" alt="${escapeHtml(name)}">
-        <div class="recipe-card-content">
-          <h4>${escapeHtml(name)}</h4>
-          <div class="recipe-tags">
-            ${tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : ''}
-          </div>
-          <div class="recipe-meta">
-            <span>${escapeHtml(timeText)}</span>
-            <span>•</span>
-            <span>— cal</span>
-          </div>
-        </div>
-      `;
-
-      grid.appendChild(card);
+      if (existingCard) {
+        existingCard.innerHTML = buildRecipeCardInnerHtml(recipe);
+        existingCard.setAttribute('data-recipe-name', name);
+      } else {
+        // Otherwise append as custom/imported card.
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        card.setAttribute('data-imported', 'true');
+        card.setAttribute('data-recipe-name', name);
+        card.innerHTML = buildRecipeCardInnerHtml(recipe);
+        grid.appendChild(card);
+      }
     });
   }
 
-  async function tryParseRecipeFromUrl(url) {
-    // Due to CORS, many recipe sites will not be fetchable from the browser.
-    // When it fails, we still let the user manually fill ingredients + instructions.
-    try {
-      const res = await fetch(url, { method: 'GET' });
-      const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, 'text/html');
+  function ensureRecipeCollectionActionButtons() {
+    document.querySelectorAll('#recipe-collection-tab .recipe-card').forEach(card => {
+      const content = card.querySelector('.recipe-card-content');
+      if (!content) return;
+      const h4 = content.querySelector('h4');
 
-      const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
-      for (const script of jsonLdScripts) {
-        const raw = script.textContent || '';
-        if (!raw) continue;
-        let data;
-        try {
-          data = JSON.parse(raw);
-        } catch {
-          continue;
-        }
-
-        const candidates = Array.isArray(data) ? data : [data];
-        for (const c of candidates) {
-          const obj = c && (c['@type'] ? c : c['@graph'] ? { '@graph': c['@graph'] } : null);
-          // If we have an array, look for Recipe
-          const maybeRecipes = Array.isArray(obj) ? obj : null;
-          const list = obj && obj['@graph'] ? obj['@graph'] : Array.isArray(c) ? c : candidates;
-          const nodes = Array.isArray(list) ? list : candidates;
-
-          for (const node of nodes) {
-            const t = node && node['@type'];
-            const isRecipe = t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'));
-            if (!isRecipe) continue;
-
-            const name = node.name || '';
-            const ingredient = node.recipeIngredient || [];
-            const instructions = node.recipeInstructions || node.instructions || [];
-
-            const ingredients = Array.isArray(ingredient) ? ingredient.map(String) : [];
-            const instructionSteps = [];
-
-            // recipeInstructions can be array, object with itemListElement, or string.
-            if (Array.isArray(instructions)) {
-              instructions.forEach(it => {
-                if (typeof it === 'string') instructionSteps.push(it);
-                else if (it && it.text) instructionSteps.push(String(it.text));
-                else if (it && it.step) instructionSteps.push(String(it.step));
-              });
-            } else if (instructions && typeof instructions === 'object') {
-              if (instructions.itemListElement && Array.isArray(instructions.itemListElement)) {
-                instructions.itemListElement.forEach(el => {
-                  const v = el && (el.text || el.name);
-                  if (v) instructionSteps.push(String(v));
-                });
-              } else if (instructions.text) {
-                instructionSteps.push(String(instructions.text));
-              }
-            } else if (typeof instructions === 'string') {
-              instructionSteps.push(instructions);
-            }
-
-            return {
-              name: String(name || ''),
-              ingredients,
-              instructions: instructionSteps
-            };
-          }
-        }
+      if (!content.querySelector('.add-recipe-to-week-btn')) {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'add-recipe-to-week-btn';
+        addBtn.type = 'button';
+        addBtn.setAttribute('aria-label', 'Add recipe to weekly plan');
+        addBtn.textContent = '+';
+        if (h4) h4.insertAdjacentElement('afterend', addBtn);
+        else content.insertAdjacentElement('afterbegin', addBtn);
       }
 
-      return null;
-    } catch (e) {
-      // Most likely CORS failure.
-      console.warn('URL fetch/parse failed (likely CORS).', e);
-      return null;
-    }
-  }
-
-  function openImportUrlModal() {
-    const overlay = document.getElementById('import-url-overlay');
-    if (!overlay) return;
-    overlay.style.display = 'flex';
-    // Reset fields
-    const urlInput = document.getElementById('import-url-input');
-    const nameInput = document.getElementById('import-url-name');
-    const ingArea = document.getElementById('import-url-ingredients');
-    const instArea = document.getElementById('import-url-instructions');
-    const status = document.getElementById('import-url-status');
-
-    if (urlInput) urlInput.value = '';
-    if (nameInput) nameInput.value = '';
-    if (ingArea) ingArea.value = '';
-    if (instArea) instArea.value = '';
-    if (status) status.textContent = '';
-  }
-
-  function closeImportUrlModal() {
-    const overlay = document.getElementById('import-url-overlay');
-    if (!overlay) return;
-    overlay.style.display = 'none';
-  }
-
-  async function tryParseAndFillImportModal() {
-    const urlInput = document.getElementById('import-url-input');
-    const nameInput = document.getElementById('import-url-name');
-    const ingArea = document.getElementById('import-url-ingredients');
-    const instArea = document.getElementById('import-url-instructions');
-    const status = document.getElementById('import-url-status');
-
-    if (!urlInput) return;
-    const url = String(urlInput.value || '').trim();
-    if (!url) {
-      if (status) status.textContent = 'Please paste a recipe URL.';
-      return;
-    }
-
-    if (status) status.textContent = 'Fetching and parsing...';
-    const parsed = await tryParseRecipeFromUrl(url);
-
-    // If parsing succeeded, fill fields.
-    if (parsed && parsed.name) {
-      if (nameInput) nameInput.value = parsed.name;
-      if (ingArea) ingArea.value = (parsed.ingredients || []).join('\n');
-      if (instArea) instArea.value = (parsed.instructions || []).join('\n');
-      if (status) status.textContent = 'Parsed! You can edit ingredients/instructions before saving.';
-      return;
-    }
-
-    // Fallback: derive name from URL and leave ingredients/instructions for manual entry.
-    const derivedName = (() => {
-      try {
-        const u = new URL(url);
-        const last = u.pathname.split('/').filter(Boolean).pop() || 'Imported Recipe';
-        return decodeURIComponent(last).replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      } catch {
-        return 'Imported Recipe';
+      if (!content.querySelector('.edit-recipe-btn')) {
+        const editBtn = document.createElement('button');
+        editBtn.className = 'edit-recipe-btn';
+        editBtn.type = 'button';
+        editBtn.setAttribute('aria-label', 'Edit recipe');
+        editBtn.textContent = '✎';
+        const addBtnRef = content.querySelector('.add-recipe-to-week-btn');
+        if (addBtnRef) addBtnRef.insertAdjacentElement('afterend', editBtn);
+        else if (h4) h4.insertAdjacentElement('afterend', editBtn);
+        else content.insertAdjacentElement('afterbegin', editBtn);
       }
-    })();
-
-    if (nameInput) nameInput.value = derivedName;
-    if (ingArea) ingArea.value = '';
-    if (instArea) instArea.value = '';
-    if (status) status.textContent = 'Could not parse this site in the browser (CORS). Add ingredients/instructions manually and save.';
-  }
-
-  function readImportModalTags() {
-    const lactose = document.getElementById('import-tag-lactose');
-    const gluten = document.getElementById('import-tag-gluten');
-    const tags = [];
-    if (lactose && lactose.checked) tags.push('Lactose-Free');
-    if (gluten && gluten.checked) tags.push('Gluten-Free');
-    return tags;
+    });
   }
 
   function parseTextareaLines(text) {
@@ -785,67 +703,166 @@ document.addEventListener('DOMContentLoaded', function() {
       .filter(Boolean);
   }
 
-  function saveImportedRecipe() {
-    const urlInput = document.getElementById('import-url-input');
-    const nameInput = document.getElementById('import-url-name');
-    const ingArea = document.getElementById('import-url-ingredients');
-    const instArea = document.getElementById('import-url-instructions');
+  function saveRecipeToCollection(recipeObj, toastMessage) {
+    const imported = getRecipeCollectionFromStorage();
+    const existingIndex = recipeObj.sourceUrl
+      ? imported.findIndex(r => r.sourceUrl === recipeObj.sourceUrl)
+      : imported.findIndex(r => r.name === recipeObj.name);
 
-    const url = String(urlInput?.value || '').trim();
+    if (existingIndex >= 0) imported[existingIndex] = recipeObj;
+    else imported.push(recipeObj);
+
+    saveRecipeCollectionToStorage(imported);
+    upsertRecipeInRECIPE_DATA(recipeObj);
+    renderRecipeCollectionCards();
+    ensureRecipeCollectionActionButtons();
+    showRecipeToast(toastMessage);
+  }
+
+  function openAddRecipeModal(recipeName = null) {
+    const overlay = document.getElementById('add-recipe-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+
+    const originalNameInput = document.getElementById('add-recipe-original-name');
+    const nameInput = document.getElementById('add-recipe-name');
+    const timeInput = document.getElementById('add-recipe-time');
+    const caloriesInput = document.getElementById('add-recipe-calories');
+    const sourceInput = document.getElementById('add-recipe-source');
+    const imageInput = document.getElementById('add-recipe-image');
+    const ingArea = document.getElementById('add-recipe-ingredients');
+    const instArea = document.getElementById('add-recipe-instructions');
+    const titleEl = document.getElementById('add-recipe-title');
+    const saveBtn = document.getElementById('add-recipe-save-btn');
+    const lactose = document.getElementById('add-tag-lactose');
+    const gluten = document.getElementById('add-tag-gluten');
+
+    if (originalNameInput) originalNameInput.value = '';
+    if (titleEl) titleEl.textContent = 'Add Custom Recipe';
+    if (saveBtn) saveBtn.textContent = 'Save to Recipe Collection';
+
+    if (nameInput) nameInput.value = '';
+    if (timeInput) timeInput.value = '';
+    if (caloriesInput) caloriesInput.value = '';
+    if (sourceInput) sourceInput.value = '';
+    if (imageInput) imageInput.value = '';
+    if (ingArea) ingArea.value = '';
+    if (instArea) instArea.value = '';
+    if (lactose) lactose.checked = true;
+    if (gluten) gluten.checked = true;
+
+    // Edit mode
+    if (recipeName && RECIPE_DATA[recipeName]) {
+      const recipe = RECIPE_DATA[recipeName];
+      if (originalNameInput) originalNameInput.value = recipeName;
+      if (titleEl) titleEl.textContent = 'Edit Recipe';
+      if (saveBtn) saveBtn.textContent = 'Save Changes';
+
+      if (nameInput) nameInput.value = recipeName;
+      if (timeInput) timeInput.value = recipe.time || '';
+      if (caloriesInput) caloriesInput.value = Number.isFinite(Number(recipe.calories)) ? String(Math.round(Number(recipe.calories))) : '';
+      if (sourceInput) sourceInput.value = recipe.sourceUrl || '';
+      if (imageInput) imageInput.value = recipe.imageUrl || '';
+      if (ingArea) ingArea.value = (recipe.ingredients || []).join('\n');
+      if (instArea) instArea.value = (recipe.instructions || []).join('\n');
+
+      const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+      if (lactose) lactose.checked = tags.includes('Lactose-Free');
+      if (gluten) gluten.checked = tags.includes('Gluten-Free');
+    }
+  }
+
+  function closeAddRecipeModal() {
+    const overlay = document.getElementById('add-recipe-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function saveCustomRecipe() {
+    const originalNameInput = document.getElementById('add-recipe-original-name');
+    const nameInput = document.getElementById('add-recipe-name');
+    const timeInput = document.getElementById('add-recipe-time');
+    const caloriesInput = document.getElementById('add-recipe-calories');
+    const sourceInput = document.getElementById('add-recipe-source');
+    const imageInput = document.getElementById('add-recipe-image');
+    const ingArea = document.getElementById('add-recipe-ingredients');
+    const instArea = document.getElementById('add-recipe-instructions');
+    const lactose = document.getElementById('add-tag-lactose');
+    const gluten = document.getElementById('add-tag-gluten');
+
     const baseName = String(nameInput?.value || '').trim();
     if (!baseName) {
       alert('Please provide a recipe name.');
       return;
     }
 
+    const originalName = String(originalNameInput?.value || '').trim();
+    const isEditMode = originalName !== '';
+
+    const time = String(timeInput?.value || '').trim() || '—';
+    const caloriesRaw = String(caloriesInput?.value || '').trim();
+    const caloriesNum = caloriesRaw === '' ? null : Number(caloriesRaw);
+    const calories = Number.isFinite(caloriesNum) && caloriesNum >= 0 ? Math.round(caloriesNum) : null;
+    const sourceUrl = String(sourceInput?.value || '').trim();
+    const imageUrl = String(imageInput?.value || '').trim();
     const ingredients = parseTextareaLines(ingArea?.value || '');
     const instructions = parseTextareaLines(instArea?.value || '');
-    const tags = readImportModalTags();
 
-    const imported = getImportedRecipesFromStorage();
+    const tags = [];
+    if (lactose && lactose.checked) tags.push('Lactose-Free');
+    if (gluten && gluten.checked) tags.push('Gluten-Free');
 
-    // Upsert by source URL if possible; otherwise upsert by name.
-    const existingIndex = url
-      ? imported.findIndex(r => r.sourceUrl === url)
-      : imported.findIndex(r => r.name === baseName);
-
-    const finalName =
-      existingIndex >= 0 ? imported[existingIndex].name : getUniqueImportedRecipeName(baseName);
-
+    const finalName = isEditMode
+      ? (baseName || originalName)
+      : getUniqueRecipeName(baseName);
     const recipeObj = {
-      id: `import-${Date.now()}`,
+      id: RECIPE_DATA[originalName]?.id || `custom-${Date.now()}`,
       name: finalName,
-      sourceUrl: url,
+      sourceUrl,
+      imageUrl,
       ingredients,
       instructions,
       tags,
-      time: '—',
+      time,
+      calories,
       color: stableColorFromName(finalName)
     };
 
-    if (existingIndex >= 0) imported[existingIndex] = recipeObj;
-    else imported.push(recipeObj);
+    // If renamed during edit, remove old key from in-memory data.
+    if (isEditMode && originalName && originalName !== finalName && RECIPE_DATA[originalName]) {
+      delete RECIPE_DATA[originalName];
+    }
 
-    saveImportedRecipesToStorage(imported);
+    // Persist/update recipe collection entry.
+    const all = getRecipeCollectionFromStorage();
+    let idx = -1;
+    if (isEditMode) {
+      idx = all.findIndex(r => r.name === originalName);
+    } else if (sourceUrl) {
+      idx = all.findIndex(r => r.sourceUrl === sourceUrl);
+    } else {
+      idx = all.findIndex(r => r.name === finalName);
+    }
+    if (idx >= 0) all[idx] = recipeObj;
+    else all.push(recipeObj);
+    saveRecipeCollectionToStorage(all);
+
     upsertRecipeInRECIPE_DATA(recipeObj);
-
-    renderImportedRecipeCards();
-    closeImportUrlModal();
-    showRecipeToast(`Imported ${finalName} into recipe collection`);
+    renderRecipeCollectionCards();
+    ensureRecipeCollectionActionButtons();
+    showRecipeToast(isEditMode ? `Updated ${finalName}` : `Added ${finalName} to recipe collection`);
+    closeAddRecipeModal();
   }
 
   // Global functions for inline onclick
-  window.openImportUrlModal = openImportUrlModal;
-  window.closeImportUrlModal = closeImportUrlModal;
-  window.tryParseRecipeFromUrl = tryParseAndFillImportModal;
-  window.saveImportedRecipe = saveImportedRecipe;
+  window.openAddRecipeModal = openAddRecipeModal;
+  window.closeAddRecipeModal = closeAddRecipeModal;
+  window.saveCustomRecipe = saveCustomRecipe;
 
-  // Close modal when clicking outside
   document.addEventListener('click', (e) => {
-    const overlay = document.getElementById('import-url-overlay');
+    const overlay = document.getElementById('add-recipe-overlay');
     if (!overlay) return;
     if (overlay.style.display !== 'flex') return;
-    if (e.target === overlay) closeImportUrlModal();
+    if (e.target === overlay) closeAddRecipeModal();
   });
 
   function getInventoryIngredients() {
@@ -1387,18 +1404,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const collection = document.getElementById('recipe-collection-tab');
     if (!collection) return;
 
-    // Delegated click: works for both default recipes and imported recipes.
+    // Delegated click for add (+) and edit buttons.
     collection.addEventListener('click', (e) => {
-      const card = e.target.closest('.recipe-card');
+      const addBtn = e.target.closest('.add-recipe-to-week-btn');
+      const editBtn = e.target.closest('.edit-recipe-btn');
+      if (!addBtn && !editBtn) return;
+      const card = (addBtn || editBtn).closest('.recipe-card');
       if (!card) return;
-
-      // Image click opens the recipe details modal (handled elsewhere).
-      if (e.target && e.target.tagName === 'IMG') return;
 
       const titleEl = card.querySelector('h4');
       if (!titleEl) return;
       const recipeName = titleEl.textContent.trim();
       if (!recipeName) return;
+
+      if (editBtn) {
+        openAddRecipeModal(recipeName);
+        return;
+      }
 
       let targetSlot = activeMealSlot;
       if (!targetSlot) {
@@ -1490,6 +1512,27 @@ document.addEventListener('DOMContentLoaded', function() {
     attachPriceEditButtonListener(btn);
   });
 
+  // Collapse/expand section controls beside tab rows
+  document.querySelectorAll('.collapse-section-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetClass = btn.getAttribute('data-collapse-target');
+      if (!targetClass) return;
+      const section = document.querySelector(`.${targetClass}`);
+      if (!section) return;
+
+      section.classList.toggle('section-collapsed');
+      btn.classList.toggle('collapsed');
+    });
+  });
+
+  // Ensure sections are expanded on initial load
+  document.querySelectorAll('.section-collapsed').forEach(section => {
+    section.classList.remove('section-collapsed');
+  });
+  document.querySelectorAll('.collapse-section-btn.collapsed').forEach(btn => {
+    btn.classList.remove('collapsed');
+  });
+
   // Expose auto-suggest globally for button onclick
   window.autoSuggestMeals = autoSuggestMeals;
 
@@ -1507,7 +1550,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set up drag-and-drop, recipe collection clicks, and initial meal plan render
   setupMealDragAndDrop();
   setupRecipeCollectionInteractions();
-  renderImportedRecipeCards();
+  ensureRecipeCollectionActionButtons();
+  renderRecipeCollectionCards();
 
   const storedPlan = loadMealPlan();
   if (storedPlan) {
