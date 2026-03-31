@@ -719,6 +719,204 @@ document.addEventListener('DOMContentLoaded', function() {
     showRecipeToast(toastMessage);
   }
 
+  function getDiscoverConfig() {
+    return {
+      spoonacularKey: '70d8730d3f5349558138ad430974479d'
+    };
+  }
+
+  function extractInstructionsFromSpoonacular(analyzedInstructions, instructionsText) {
+    if (Array.isArray(analyzedInstructions) && analyzedInstructions.length > 0) {
+      const steps = analyzedInstructions
+        .flatMap(block => Array.isArray(block.steps) ? block.steps : [])
+        .map(step => String(step.step || '').trim())
+        .filter(Boolean);
+      if (steps.length) return steps;
+    }
+
+    return String(instructionsText || '')
+      .split('.')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+      .map(s => `${s}.`);
+  }
+
+  function normalizeSpoonacularRecipe(item) {
+    const title = String(item?.title || '').trim();
+    if (!title) return null;
+
+    const tags = [];
+    if (item?.glutenFree) tags.push('Gluten-Free');
+    if (item?.dairyFree) tags.push('Lactose-Free');
+    if (Array.isArray(item?.dishTypes)) {
+      item.dishTypes.slice(0, 2).forEach(t => {
+        const label = String(t || '').trim();
+        if (label) tags.push(label.charAt(0).toUpperCase() + label.slice(1));
+      });
+    }
+
+    const ingredients = Array.isArray(item?.extendedIngredients)
+      ? item.extendedIngredients.map(ing => String(ing?.name || '').trim()).filter(Boolean)
+      : [];
+    const instructions = extractInstructionsFromSpoonacular(item?.analyzedInstructions, item?.instructions);
+
+    return {
+      id: `spoon-${item.id || Date.now()}`,
+      name: title,
+      sourceUrl: String(item?.sourceUrl || ''),
+      imageUrl: String(item?.image || ''),
+      ingredients,
+      instructions,
+      tags: Array.from(new Set(tags)),
+      time: item?.readyInMinutes ? `${item.readyInMinutes} min` : '—',
+      calories: Number.isFinite(Number(item?.nutrition?.nutrients?.find(n => n.name === 'Calories')?.amount))
+        ? Math.round(Number(item.nutrition.nutrients.find(n => n.name === 'Calories').amount))
+        : null,
+      color: stableColorFromName(title)
+    };
+  }
+
+  function normalizeEdamamRecipe(hit) {
+    const recipe = hit?.recipe;
+    const title = String(recipe?.label || '').trim();
+    if (!title) return null;
+
+    const healthLabels = Array.isArray(recipe?.healthLabels) ? recipe.healthLabels : [];
+    const tags = healthLabels
+      .filter(label => ['Gluten-Free', 'Dairy-Free', 'Low-Carb', 'Low-Fat', 'Balanced'].includes(label))
+      .map(label => label === 'Dairy-Free' ? 'Lactose-Free' : label);
+
+    const ingredients = Array.isArray(recipe?.ingredientLines)
+      ? recipe.ingredientLines.map(ing => String(ing || '').trim()).filter(Boolean)
+      : [];
+
+    return {
+      id: `edamam-${encodeURIComponent(recipe?.uri || title)}`,
+      name: title,
+      sourceUrl: String(recipe?.url || ''),
+      imageUrl: String(recipe?.image || ''),
+      ingredients,
+      instructions: ['Open original recipe for full directions.'],
+      tags: Array.from(new Set(tags)),
+      time: Number.isFinite(Number(recipe?.totalTime)) && Number(recipe.totalTime) > 0
+        ? `${Math.round(Number(recipe.totalTime))} min`
+        : '—',
+      calories: Number.isFinite(Number(recipe?.calories))
+        ? Math.round(Number(recipe.calories / Math.max(Number(recipe?.yield) || 1, 1)))
+        : null,
+      color: stableColorFromName(title)
+    };
+  }
+
+  async function fetchSpoonacularRecipes(query) {
+    const config = getDiscoverConfig();
+    if (!config.spoonacularKey) return [];
+
+    const url = new URL('https://api.spoonacular.com/recipes/complexSearch');
+    url.searchParams.set('query', query);
+    url.searchParams.set('number', '6');
+    url.searchParams.set('addRecipeInformation', 'true');
+    url.searchParams.set('fillIngredients', 'true');
+    url.searchParams.set('apiKey', config.spoonacularKey);
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Spoonacular request failed (${res.status})`);
+    const data = await res.json();
+    const results = Array.isArray(data?.results) ? data.results : [];
+    return results.map(normalizeSpoonacularRecipe).filter(Boolean).map(r => ({ ...r, source: 'Spoonacular' }));
+  }
+
+  function dedupeDiscoveredRecipes(recipes) {
+    const seen = new Set();
+    return recipes.filter(recipe => {
+      const key = `${String(recipe.name || '').toLowerCase()}|${String(recipe.sourceUrl || '').toLowerCase()}`;
+      if (!recipe.name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function renderDiscoverResults(results) {
+    const container = document.getElementById('discover-results');
+    if (!container) return;
+    container.innerHTML = '';
+
+    results.forEach(recipe => {
+      const card = document.createElement('div');
+      card.className = 'discover-result-card';
+      card.innerHTML = `
+        <img src="${escapeHtml(recipe.imageUrl || `https://via.placeholder.com/220x120/${recipe.color}/ffffff?text=Recipe`)}" alt="${escapeHtml(recipe.name)}">
+        <div class="discover-result-card-body">
+          <span class="discover-source">${escapeHtml(recipe.source || 'External')}</span>
+          <h4>${escapeHtml(recipe.name)}</h4>
+          <div class="discover-meta">${escapeHtml(recipe.time || '—')} • ${escapeHtml(Number.isFinite(Number(recipe.calories)) ? `${Math.round(Number(recipe.calories))} cal` : '— cal')}</div>
+          <button class="btn-secondary discover-import-btn" type="button">Add to Collection</button>
+        </div>
+      `;
+
+      const importBtn = card.querySelector('.discover-import-btn');
+      if (importBtn) {
+        importBtn.addEventListener('click', () => {
+          const uniqueName = getUniqueRecipeName(recipe.name);
+          const recipeToSave = { ...recipe, name: uniqueName };
+          delete recipeToSave.source;
+          saveRecipeToCollection(recipeToSave, `Added ${uniqueName}`);
+        });
+      }
+      container.appendChild(card);
+    });
+  }
+
+  function setDiscoverStatus(message) {
+    const status = document.getElementById('discover-status');
+    if (status) status.textContent = message;
+  }
+
+  function openDiscoverModal() {
+    const overlay = document.getElementById('discover-recipes-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    setDiscoverStatus('Ready to search.');
+  }
+
+  function closeDiscoverModal() {
+    const overlay = document.getElementById('discover-recipes-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+  }
+
+  async function discoverRecipesFromApis() {
+    const query = String(document.getElementById('discover-query')?.value || '').trim();
+
+    if (!query) {
+      setDiscoverStatus('Enter a search query to discover recipes.');
+      return;
+    }
+
+    const config = getDiscoverConfig();
+    if (!config.spoonacularKey) {
+      setDiscoverStatus('Missing Spoonacular key.');
+      return;
+    }
+
+    setDiscoverStatus('Searching Spoonacular...');
+    try {
+      const spoonResults = await fetchSpoonacularRecipes(query);
+      const deduped = dedupeDiscoveredRecipes(spoonResults);
+      renderDiscoverResults(deduped);
+
+      if (!deduped.length) {
+        setDiscoverStatus('No recipes found for that search.');
+      } else {
+        setDiscoverStatus(`Found ${deduped.length} recipes. Click "Add to Collection" to import.`);
+      }
+    } catch (error) {
+      console.error(error);
+      setDiscoverStatus('Unable to fetch recipes right now. Please try again.');
+    }
+  }
+
   function openAddRecipeModal(recipeName = null) {
     const overlay = document.getElementById('add-recipe-overlay');
     if (!overlay) return;
@@ -1552,6 +1750,21 @@ document.addEventListener('DOMContentLoaded', function() {
   setupRecipeCollectionInteractions();
   ensureRecipeCollectionActionButtons();
   renderRecipeCollectionCards();
+
+  const discoverBtn = document.getElementById('discover-recipes-btn');
+  const discoverCloseBtn = document.getElementById('discover-recipes-close');
+  const discoverCancelBtn = document.getElementById('discover-cancel-btn');
+  const discoverSearchBtn = document.getElementById('discover-search-btn');
+  const discoverOverlay = document.getElementById('discover-recipes-overlay');
+  if (discoverBtn) discoverBtn.addEventListener('click', openDiscoverModal);
+  if (discoverCloseBtn) discoverCloseBtn.addEventListener('click', closeDiscoverModal);
+  if (discoverCancelBtn) discoverCancelBtn.addEventListener('click', closeDiscoverModal);
+  if (discoverSearchBtn) discoverSearchBtn.addEventListener('click', discoverRecipesFromApis);
+  if (discoverOverlay) {
+    discoverOverlay.addEventListener('click', (e) => {
+      if (e.target === discoverOverlay) closeDiscoverModal();
+    });
+  }
 
   const storedPlan = loadMealPlan();
   if (storedPlan) {
