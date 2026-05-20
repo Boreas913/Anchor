@@ -1,4 +1,4 @@
-    // --- State Management ---
+// --- State Management ---
         const STORE_KEY = 'focusflow_data';
         let appData = {
             tasks: [],
@@ -21,6 +21,8 @@
             renderDashboard();
             renderDaily();
             requestNotificationPermission();
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
         });
 
         function loadData() {
@@ -83,10 +85,16 @@
 
         function createTaskCard(task) {
             const div = document.createElement('div');
-            div.className = 'task-card';
+            // Add 'completed' class if status is completed for styling
+            div.className = `task-card ${task.status === 'completed' ? 'completed' : ''}`;
             div.draggable = true; // Enable drag
             div.ondragstart = (e) => drag(e, task.id);
-            div.onclick = () => openDetailModal(task.id);
+            // Clicking the card body (not the button) opens details
+            div.onclick = (e) => {
+                if(!e.target.closest('.btn-quick-complete')) {
+                    openDetailModal(task.id);
+                }
+            };
 
             // Status Class
             const statusClass = `status-${task.status}`;
@@ -95,14 +103,49 @@
             // Time Formatting
             const timeStr = formatTimeFriendly(task.estimatedMinutes);
 
+            // Complete Button Icon
+            const checkIcon = task.status === 'completed' ? '✓' : '';
+
             div.innerHTML = `
-                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-header-row">
+                    <div class="task-title">${escapeHtml(task.title)}</div>
+                    <button class="btn-quick-complete" onclick="quickCompleteTask(${task.id}, event)" title="Mark as Complete">
+                        ${checkIcon}
+                    </button>
+                </div>
                 <div class="task-meta">
                     <span class="status-tag ${statusClass}">${statusLabel}</span>
                     <span class="time-est">⏱ ${timeStr}</span>
                 </div>
             `;
             return div;
+        }
+
+        // New: Quick Complete Function
+        function quickCompleteTask(id, event) {
+            // Prevent bubbling so we don't open the modal immediately
+            if(event) event.stopPropagation();
+
+            const task = appData.tasks.find(t => t.id === id);
+            if (!task) return;
+
+            // Toggle status
+            if (task.status === 'completed') {
+                task.status = 'not-started'; // Undo
+            } else {
+                task.status = 'completed';
+                fireConfetti(); // Trigger visual effect
+                showToast("Task Completed! Great job.");
+            }
+
+            saveData();
+            renderDashboard();
+            
+            // If the detail modal is open for this task, update it too
+            if(currentDetailId === id) {
+                document.getElementById('detailStatusSelect').value = task.status;
+                updateStatusDisplay(task.status);
+            }
         }
 
         function formatTimeFriendly(minutes) {
@@ -181,12 +224,6 @@
         let currentDetailId = null;
 
         function openDetailModal(id) {
-            // Stop any timer running if switching tasks? 
-            // Decision: Keep timer running in background, but UI shows current task.
-            
-            // If switching to a different task while one is running, we could warn or just switch.
-            // For simplicity, we update the UI to the new task, but timer state remains attached to the previous task ID.
-            
             // Stop current timer visual update loop if any
             stopTimerUIUpdate(); 
             
@@ -207,16 +244,11 @@
             updateStatusDisplay(task.status);
 
             // Setup Timer State for this task
-            // Check if this task already has a timer running in our runtime state
             if (activeTimer.taskId === id && activeTimer.isRunning) {
-                // It's already running
                 setupTimerUI(true);
-                updateTimerDisplay(); // Immediate refresh
+                updateTimerDisplay();
             } else {
-                // It's not running, or a different task was running
                 setupTimerUI(false);
-                // Reset display to estimated time or 0?
-                // Let's show estimated time initially if not started
                 resetTimerDisplay(task.estimatedMinutes * 60);
             }
 
@@ -240,28 +272,21 @@
             if (isRunning) {
                 btnStart.textContent = "Pause Timer";
                 btnStart.classList.remove('start');
-                btnStart.style.background = '#d84315'; // Orange-ish for pause
+                btnStart.style.background = '#d84315';
             } else {
                 btnStart.textContent = "Start Timer";
                 btnStart.classList.add('start');
-                btnStart.style.background = ''; // Reset to class style
+                btnStart.style.background = '';
             }
         }
 
         function toggleTimer() {
             if (activeTimer.isRunning && activeTimer.taskId === currentDetailId) {
-                // Pause
                 pauseTimer();
             } else {
-                // Start
-                // If a different task was running, pause it first? 
-                // No, let's allow context switching. But for simplicity in this tool, we pause the previous one.
                 if (activeTimer.isRunning && activeTimer.taskId !== currentDetailId) {
-                    // Just stop tracking the old one visually, logic-wise we could switch, 
-                    // but let's implement "One Active Timer" policy for simplicity.
                     pauseTimer(); 
                 }
-
                 const task = appData.tasks.find(t => t.id === currentDetailId);
                 startTimer(task);
             }
@@ -270,29 +295,15 @@
         function startTimer(task) {
             if (!task) return;
             
-            // Initialize or Resume
             if (activeTimer.taskId !== task.id) {
-                // New timer session
                 activeTimer.taskId = task.id;
                 activeTimer.startTime = Date.now();
                 activeTimer.accumulatedSeconds = 0;
                 activeTimer.estimatedSeconds = task.estimatedMinutes * 60;
             } else {
-                // Resuming: Adjust start time so the diff matches accumulation
-                // Actually simpler: accumulatedSeconds holds the PAST time. 
-                // When we pause, we calculate diff. When we start, we reset startTime to Now.
-                // But wait, if we pause, we need to store how long we ran.
-                
-                // Logic refinement:
-                // isRunning = true.
-                // interval runs every 1s.
-                // currentTotal = accumulatedSeconds + (Now - startTime).
-            }
-
-            // If we are starting from a paused state (startTime is old)
-            // We only reset startTime if we weren't running.
-            if (!activeTimer.isRunning) {
-                activeTimer.startTime = Date.now(); 
+                if (!activeTimer.isRunning) {
+                    activeTimer.startTime = Date.now(); 
+                }
             }
 
             activeTimer.isRunning = true;
@@ -300,12 +311,10 @@
 
             setupTimerUI(true);
             
-            // Notification Request
             if ("Notification" in window && Notification.permission === "granted") {
-                // If we wanted to notify start, we could here.
+                // Logic if needed
             }
 
-            // Start Tick
             activeTimer.intervalId = setInterval(() => {
                 const now = Date.now();
                 const sessionSeconds = Math.floor((now - activeTimer.startTime) / 1000);
@@ -313,8 +322,6 @@
                 
                 updateTimerDisplay(totalElapsed);
 
-                // Check for completion (zero crossing)
-                // We track if we have already alerted to avoid spamming
                 if (totalElapsed === activeTimer.estimatedSeconds) {
                     sendTimeUpNotification(task.title);
                 }
@@ -327,7 +334,6 @@
                 clearInterval(activeTimer.intervalId);
                 activeTimer.isRunning = false;
                 
-                // Save the session time into accumulated
                 const now = Date.now();
                 const sessionSeconds = Math.floor((now - activeTimer.startTime) / 1000);
                 activeTimer.accumulatedSeconds += sessionSeconds;
@@ -348,12 +354,7 @@
 
         function stopTimerUIUpdate() {
             if (activeTimer.intervalId) {
-                // We don't clear the interval here if we want it to run in background, 
-                // but for this simple single-page app, let's assume timer stops if we close modal?
-                // The prompt implies persistence. "Timer runs out... trigger notification".
-                // So we MUST keep interval running even if modal closed.
-                // However, `updateTimerDisplay` relies on DOM elements which might be missing.
-                // Safest approach: Keep interval running, but update DOM only if visible.
+                // Keep it running in background
             }
         }
 
@@ -368,15 +369,13 @@
             }
 
             const displayEl = document.getElementById('timerDisplay');
-            if (!displayEl) return; // Modal closed
+            if (!displayEl) return; 
 
             if (totalElapsed <= activeTimer.estimatedSeconds) {
-                // Countdown Mode
                 const remaining = activeTimer.estimatedSeconds - totalElapsed;
                 displayEl.textContent = formatSecondsToHMS(remaining);
                 displayEl.classList.remove('overtime');
             } else {
-                // Overtime Mode
                 const overtime = totalElapsed - activeTimer.estimatedSeconds;
                 displayEl.textContent = "+" + formatSecondsToHMS(overtime);
                 displayEl.classList.add('overtime');
@@ -405,7 +404,6 @@
                     icon: "https://picsum.photos/seed/clock/64/64.jpg"
                 });
             }
-            // Play a subtle sound? (Browsers often block auto-audio, so relying on visual/toast)
         }
 
         function updateTaskStatusFromDetail() {
@@ -414,7 +412,7 @@
             if (task) {
                 task.status = newStatus;
                 saveData();
-                renderDashboard(); // Update card color in background
+                renderDashboard();
                 updateStatusDisplay(newStatus);
             }
         }
@@ -440,13 +438,10 @@
         function deleteCurrentTask() {
             if(confirm("Are you sure you want to delete this task?")) {
                 appData.tasks = appData.tasks.filter(t => t.id !== currentDetailId);
-                
-                // If timer was running on this, stop it
                 if (activeTimer.taskId === currentDetailId) {
                     pauseTimer();
                     activeTimer.taskId = null;
                 }
-
                 saveData();
                 renderDashboard();
                 closeModal('detailModal');
@@ -499,7 +494,6 @@
 
         function closeModal(id) {
             document.getElementById(id).classList.remove('open');
-            // If closing detail modal, we do NOT stop the timer, so it keeps running in background.
         }
 
         function escapeHtml(text) {
@@ -512,9 +506,71 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // Close modal on outside click
         window.onclick = function(event) {
             if (event.target.classList.contains('modal-overlay')) {
                 event.target.classList.remove('open');
+            }
+        }
+
+        // --- Confetti Engine (Vanilla JS) ---
+        const canvas = document.getElementById("confetti-canvas");
+        const ctx = canvas.getContext("2d");
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function createParticle() {
+            const colors = ['#d4a373', '#e76f51', '#ffffff', '#ffe8d6'];
+            return {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                r: Math.random() * 6 + 2, // radius
+                dx: (Math.random() - 0.5) * 15,
+                dy: (Math.random() - 0.5) * 15,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                tilt: Math.random() * 10,
+                tiltAngle: Math.random() * 10,
+                life: 100
+            };
+        }
+
+        function fireConfetti() {
+            // Create burst
+            for (let i = 0; i < 100; i++) {
+                particles.push(createParticle());
+            }
+            if (particles.length <= 100) {
+                requestAnimationFrame(updateConfetti);
+            }
+        }
+
+        function updateConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach((p, index) => {
+                p.tiltAngle += 0.1;
+                p.y += (Math.cos(p.tiltAngle) + 1 + p.r / 2) * 0.5; // Gravity
+                p.x += Math.sin(p.tiltAngle) * 2;
+                p.life--;
+                
+                ctx.beginPath();
+                ctx.lineWidth = p.r / 2;
+                ctx.strokeStyle = p.color;
+                ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+                ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+                ctx.stroke();
+
+                if (p.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+
+            if (particles.length > 0) {
+                requestAnimationFrame(updateConfetti);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
