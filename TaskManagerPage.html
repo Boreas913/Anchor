@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anchor - Meal Planning</title>
     <link rel="stylesheet" href="TaskManagerPage.css">
+    <script src="TaskManagerPage.js" defer></script>
 </head>
 <body>
     <!-- Navigation -->
@@ -36,3 +37,185 @@
             </div>
         </div>
     </nav>
+</head>
+<body>
+
+    <header>
+        <h1>FocusFlow</h1>
+        <nav>
+            <button class="nav-btn active" onclick="switchView('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="switchView('daily')">Daily Tasks</button>
+        </nav>
+        <button class="btn-primary" id="addTaskBtn" onclick="openCreateModal()">+ New Task</button>
+    </header>
+
+    <main>
+        <!-- View 1: Dashboard (Eisenhower Modified) -->
+        <section id="view-dashboard" class="view-section active">
+            <div class="board">
+                <!-- Column 1: To Do -->
+                <div class="column">
+                    <div class="column-header">To Do</div>
+                    <div class="task-list" id="col-todo" ondrop="drop(event, 'todo')" ondragover="allowDrop(event)">
+                        <!-- Tasks injected here -->
+                    </div>
+                </div>
+                <!-- Column 2: Do Later -->
+                <div class="column">
+                    <div class="column-header">Do Later</div>
+                    <div class="task-list" id="col-later" ondrop="drop(event, 'later')" ondragover="allowDrop(event)">
+                        <!-- Tasks injected here -->
+                    </div>
+                </div>
+                <!-- Column 3: Do Someday -->
+                <div class="column">
+                    <div class="column-header">Do Someday</div>
+                    <div class="task-list" id="col-someday" ondrop="drop(event, 'someday')" ondragover="allowDrop(event)">
+                        <!-- Tasks injected here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View 2: Daily Tasks -->
+        <section id="view-daily" class="view-section">
+            <div class="daily-container">
+                <div class="daily-header">
+                    <h2>Daily Focus Zone</h2>
+                    <p style="color: var(--text-muted)">Keep your recurring habits separate from your main project board.</p>
+                </div>
+                <div class="daily-list" id="daily-list-container">
+                    <!-- Daily Tasks injected here -->
+                </div>
+                <div style="margin-top: 2rem; text-align: center;">
+                    <button class="btn-timer" onclick="addDailyTaskPrompt()">+ Add Daily Habit</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Task Create/Edit Modal -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">New Task</h3>
+                <button class="close-modal" onclick="closeModal('taskModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="taskForm">
+                    <input type="hidden" id="taskId">
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" id="inputTitle" required placeholder="What needs to be done?">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="inputDesc" placeholder="Brief details..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Column</label>
+                            <select id="inputColumn">
+                                <option value="todo">To Do</option>
+                                <option value="later">Do Later</option>
+                                <option value="someday">Do Someday</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="inputStatus">
+                                <option value="not-started">Not Started</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="on-hold">On Hold</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Estimated Time (Minutes)</label>
+                        <input type="number" id="inputTime" min="1" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Materials Needed</label>
+                        <input type="text" id="inputMaterials" placeholder="Tools, links, resources...">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="inputNotes" placeholder="Progress updates, thoughts..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-timer" onclick="closeModal('taskModal')">Cancel</button>
+                <button class="btn-primary" onclick="saveTask()">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="detailTitle">Task Details</h3>
+                <button class="close-modal" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Timer Section -->
+                <div class="detail-timer-section">
+                    <div id="detailStatusDisplay" style="margin-bottom: 10px; font-size: 0.9rem; color: var(--accent-primary);"></div>
+                    <div class="timer-display" id="timerDisplay">00:00:00</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Estimated: <span id="detailEstTime"></span></div>
+                    <div class="timer-controls">
+                        <button class="btn-timer start" id="btnStartTimer" onclick="toggleTimer()">Start Timer</button>
+                        <button class="btn-timer stop" id="btnResetTimer" onclick="resetTimer()">Reset</button>
+                    </div>
+                </div>
+
+                <div class="detail-grid">
+                    <div class="full-width">
+                        <p id="detailDesc" style="color: var(--text-muted); line-height: 1.5;"></p>
+                    </div>
+                    
+                    <div>
+                        <label>Materials</label>
+                        <div id="detailMaterials" style="background: var(--bg-input); padding: 10px; border-radius: 4px; font-size: 0.9rem;"></div>
+                    </div>
+
+                    <div>
+                        <label>Settings</label>
+                        <div style="display: flex; gap: 10px; align-items: center; height: 100%;">
+                            <select id="detailStatusSelect" onchange="updateTaskStatusFromDetail()" style="flex:1;">
+                                <option value="not-started">Not Started</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="on-hold">On Hold</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                            <select id="detailColumnSelect" onchange="updateTaskColumnFromDetail()" style="flex:1;">
+                                <option value="todo">To Do</option>
+                                <option value="later">Do Later</option>
+                                <option value="someday">Do Someday</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="full-width">
+                        <label>Notes</label>
+                        <textarea id="detailNotes" style="width: 100%; height: 100px;" onblur="saveNotesFromDetail()"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-timer" style="border-color: var(--accent-danger); color: var(--accent-danger);" onclick="deleteCurrentTask()">Delete Task</button>
+                <button class="btn-primary" onclick="closeModal('detailModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Notification Message</div>
+</body>
+</html>
+</body>
+</html>
